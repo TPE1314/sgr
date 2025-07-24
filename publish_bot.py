@@ -164,6 +164,7 @@ class PublishBot:
         """处理回调按钮"""
         query = update.callback_query
         user_id = update.effective_user.id
+        user_name = update.effective_user.first_name or update.effective_user.username or "管理员"
         
         if not self.config.is_admin(user_id):
             await query.answer("❌ 您没有权限执行此操作。")
@@ -174,11 +175,19 @@ class PublishBot:
         
         if data.startswith("approve_"):
             submission_id = int(data.split("_")[1])
-            await self.approve_submission(query, submission_id, user_id)
+            await self.approve_submission_in_group(query, submission_id, user_id, user_name)
         
         elif data.startswith("reject_"):
             submission_id = int(data.split("_")[1])
-            await self.reject_submission(query, submission_id, user_id)
+            await self.reject_submission_in_group(query, submission_id, user_id, user_name)
+        
+        elif data.startswith("user_stats_"):
+            user_target_id = int(data.split("_")[2])
+            await self.show_user_stats(query, user_target_id)
+        
+        elif data.startswith("ban_user_"):
+            user_target_id = int(data.split("_")[2])
+            await self.ban_user_action(query, user_target_id, user_id)
         
         elif data == "next_submission":
             await self.show_next_submission(query)
@@ -267,6 +276,133 @@ class PublishBot:
         await self.show_next_submission_inline(query)
         
         logger.info(f"管理员 {reviewer_id} 拒绝了投稿 #{submission_id}")
+    
+    async def approve_submission_in_group(self, query, submission_id, reviewer_id, reviewer_name):
+        """在审核群中批准投稿"""
+        submission = self.db.get_submission_by_id(submission_id)
+        if not submission:
+            await query.edit_message_text("❌ 投稿不存在或已被处理。")
+            return
+        
+        if submission['status'] != 'pending':
+            await query.edit_message_text(f"❌ 投稿状态已变更：{submission['status']}")
+            return
+        
+        # 批准投稿
+        success = self.db.approve_submission(submission_id, reviewer_id)
+        if not success:
+            await query.edit_message_text("❌ 批准失败，请重试。")
+            return
+        
+        # 发布到频道
+        try:
+            await self.publish_to_channel(submission)
+            # 标记为已发布
+            self.db.mark_published(submission_id)
+            
+            # 更新消息显示审核结果
+            success_text = f"""
+✅ **投稿已批准并发布**
+
+📄 投稿ID：{submission_id}
+👤 投稿用户：{submission['username']}
+👨‍💼 审核员：{reviewer_name}
+📢 状态：已发布到频道
+⏰ 处理时间：{self.get_current_time()}
+
+投稿已成功发布到频道。
+            """
+            
+            await query.edit_message_text(
+                success_text,
+                parse_mode=ParseMode.MARKDOWN
+            )
+            
+            logger.info(f"管理员 {reviewer_id} ({reviewer_name}) 在审核群中批准了投稿 #{submission_id}")
+            
+        except Exception as e:
+            logger.error(f"发布投稿 #{submission_id} 失败: {e}")
+            await query.edit_message_text(f"❌ 发布失败: {str(e)}")
+    
+    async def reject_submission_in_group(self, query, submission_id, reviewer_id, reviewer_name):
+        """在审核群中拒绝投稿"""
+        submission = self.db.get_submission_by_id(submission_id)
+        if not submission:
+            await query.edit_message_text("❌ 投稿不存在或已被处理。")
+            return
+        
+        if submission['status'] != 'pending':
+            await query.edit_message_text(f"❌ 投稿状态已变更：{submission['status']}")
+            return
+        
+        # 拒绝投稿
+        success = self.db.reject_submission(submission_id, reviewer_id, "管理员拒绝")
+        if not success:
+            await query.edit_message_text("❌ 拒绝失败，请重试。")
+            return
+        
+        # 更新消息显示审核结果
+        success_text = f"""
+❌ **投稿已拒绝**
+
+📄 投稿ID：{submission_id}
+👤 投稿用户：{submission['username']}
+👨‍💼 审核员：{reviewer_name}
+📢 状态：已拒绝
+⏰ 处理时间：{self.get_current_time()}
+
+投稿已被拒绝。
+        """
+        
+        await query.edit_message_text(
+            success_text,
+            parse_mode=ParseMode.MARKDOWN
+        )
+        
+        logger.info(f"管理员 {reviewer_id} ({reviewer_name}) 在审核群中拒绝了投稿 #{submission_id}")
+    
+    async def show_user_stats(self, query, user_id):
+        """显示用户统计信息"""
+        stats = self.db.get_user_stats(user_id)
+        is_banned = self.db.is_user_banned(user_id)
+        
+        stats_text = f"""
+👤 **用户统计信息**
+
+🆔 用户ID：{user_id}
+🚫 状态：{'已封禁' if is_banned else '正常'}
+
+📊 **投稿统计：**
+📝 总投稿数：{stats['total']}
+⏳ 待审核：{stats['pending']}
+✅ 已通过：{stats['approved']}
+📢 已发布：{stats['published']}
+❌ 已拒绝：{stats['rejected']}
+
+通过率：{(stats['published'] / stats['total'] * 100) if stats['total'] > 0 else 0:.1f}%
+        """
+        
+        await query.message.reply_text(
+            stats_text,
+            parse_mode=ParseMode.MARKDOWN
+        )
+    
+    async def ban_user_action(self, query, user_target_id, admin_id):
+        """封禁用户操作"""
+        if self.db.is_user_banned(user_target_id):
+            await query.message.reply_text(f"⚠️ 用户 {user_target_id} 已经被封禁。")
+            return
+        
+        success = self.db.ban_user(user_target_id, admin_id)
+        if success:
+            await query.message.reply_text(f"🚫 用户 {user_target_id} 已被封禁。")
+        else:
+            await query.message.reply_text(f"❌ 封禁用户 {user_target_id} 失败。")
+    
+    def get_current_time(self):
+        """获取当前时间字符串"""
+        from datetime import datetime
+        return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     async def publish_to_channel(self, submission):
         """发布到频道"""

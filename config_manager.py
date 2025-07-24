@@ -35,6 +35,10 @@ class ConfigManager:
         """获取管理员群组ID"""
         return self.config.get('telegram', 'admin_group_id')
     
+    def get_review_group_id(self) -> str:
+        """获取审核群组ID"""
+        return self.config.get('telegram', 'review_group_id')
+    
     def get_admin_users(self) -> List[int]:
         """获取管理员用户ID列表"""
         admin_users_str = self.config.get('telegram', 'admin_users')

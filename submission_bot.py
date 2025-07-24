@@ -8,6 +8,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 from telegram.constants import ParseMode
 from database import DatabaseManager
 from config_manager import ConfigManager
+from notification_service import NotificationService
 
 # 配置日志
 logging.basicConfig(
@@ -24,6 +25,7 @@ class SubmissionBot:
     def __init__(self):
         self.config = ConfigManager()
         self.db = DatabaseManager(self.config.get_db_file())
+        self.notification_service = NotificationService()
         self.app = None
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -148,6 +150,9 @@ class SubmissionBot:
             parse_mode=ParseMode.MARKDOWN
         )
         
+        # 发送到审核群
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        
         logger.info(f"用户 {user.id} ({user.username}) 提交了文字投稿 #{submission_id}")
     
     async def handle_photo_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -187,6 +192,9 @@ class SubmissionBot:
             parse_mode=ParseMode.MARKDOWN
         )
         
+        # 发送到审核群
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        
         logger.info(f"用户 {user.id} ({user.username}) 提交了图片投稿 #{submission_id}")
     
     async def handle_video_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -225,6 +233,9 @@ class SubmissionBot:
             success_text,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # 发送到审核群
+        await self.notification_service.send_submission_to_review_group(submission_id)
         
         logger.info(f"用户 {user.id} ({user.username}) 提交了视频投稿 #{submission_id}")
     
@@ -266,6 +277,9 @@ class SubmissionBot:
             parse_mode=ParseMode.MARKDOWN
         )
         
+        # 发送到审核群
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        
         logger.info(f"用户 {user.id} ({user.username}) 提交了文档投稿 #{submission_id}")
     
     async def handle_audio_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -305,6 +319,9 @@ class SubmissionBot:
             success_text,
             parse_mode=ParseMode.MARKDOWN
         )
+        
+        # 发送到审核群
+        await self.notification_service.send_submission_to_review_group(submission_id)
         
         logger.info(f"用户 {user.id} ({user.username}) 提交了{content_type}投稿 #{submission_id}")
     
