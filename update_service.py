@@ -155,6 +155,16 @@ class UpdateService:
                 if not backup_result[0]:
                     return False, f"备份失败: {backup_result[1]}"
             
+            # 清理可能冲突的临时文件（日志文件等）
+            cleanup_files = [
+                "*.log",
+                "logs/*.log", 
+                "pids/*.pid",
+                "temp/*"
+            ]
+            for pattern in cleanup_files:
+                await self._run_command(f"rm -f {pattern} 2>/dev/null || true")
+            
             # 拉取最新代码
             result = await self._run_command(f"git fetch origin {branch}")
             if not result[0]:
@@ -165,10 +175,17 @@ class UpdateService:
             if result[0] and result[1].strip() == "0":
                 return True, "代码已是最新版本，无需更新"
             
+            # 重置未跟踪文件以避免冲突
+            await self._run_command("git clean -fd")
+            
             # 合并最新代码
             result = await self._run_command(f"git merge origin/{branch}")
             if not result[0]:
-                return False, f"合并代码失败: {result[1]}"
+                # 如果还是失败，尝试强制合并
+                await self._run_command("git reset --hard HEAD")
+                result = await self._run_command(f"git merge origin/{branch}")
+                if not result[0]:
+                    return False, f"合并代码失败: {result[1]}"
             
             # 获取最新提交信息
             result = await self._run_command("git log -1 --pretty=format:'%h - %s (%an, %ar)'")
