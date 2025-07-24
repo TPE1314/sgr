@@ -16,7 +16,7 @@
 set -e
 
 # 脚本版本和信息
-SCRIPT_VERSION="2.1"
+SCRIPT_VERSION="2.1.1"
 SCRIPT_NAME="Telegram Bot System Installer"
 MIN_PYTHON_VERSION="3.8"
 REQUIRED_MEMORY_MB=512
@@ -1623,40 +1623,125 @@ init_database() {
     
     # 预检查数据库环境
     log_step "检查数据库环境..."
-    if python3 test_database_init.py >/dev/null 2>&1; then
+    
+    # 内置的简单数据库环境检查
+    if python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+
+# 检查必需文件
+required_files = ['database.py', 'config_manager.py']
+missing_files = []
+
+for file in required_files:
+    if not os.path.exists(file):
+        missing_files.append(file)
+
+if missing_files:
+    print(f'ERROR: 缺少必需文件: {missing_files}')
+    exit(1)
+
+# 测试数据库模块导入
+try:
+    from database import DatabaseManager
+    db = DatabaseManager(':memory:')
+    print('SUCCESS: 数据库环境检查通过')
+except ImportError as e:
+    print(f'ERROR: 数据库模块导入失败: {e}')
+    exit(1)
+except Exception as e:
+    print(f'ERROR: 数据库测试失败: {e}')
+    exit(1)
+" >/dev/null 2>&1; then
         log_success "数据库环境检查通过"
     else
         log_warning "数据库环境检查发现问题，尝试修复..."
         
-        # 运行诊断工具
-        if python3 fix_database_issue.py 2>/dev/null | grep -q "所有检查通过"; then
-            log_success "数据库问题已修复"
+        # 设置Python路径并重试
+        export PYTHONPATH="$PYTHONPATH:$(pwd)"
+        
+        if python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+
+try:
+    from database import DatabaseManager
+    db = DatabaseManager(':memory:')
+    print('数据库环境修复成功')
+except Exception as e:
+    print(f'数据库环境修复失败: {e}')
+    exit(1)
+" >/dev/null 2>&1; then
+            log_success "数据库问题已自动修复"
         else
-            log_error "数据库环境存在问题，请运行诊断工具："
-            echo "  python3 fix_database_issue.py"
-            echo "  # 或者"
-            echo "  export PYTHONPATH=\$PYTHONPATH:\$(pwd)"
+            log_error "数据库环境存在问题，请检查："
             echo
-            echo "如果问题持续，请确保："
-            echo "1. 在正确的项目目录中运行"
-            echo "2. 所有Python文件完整下载"
-            echo "3. 虚拟环境正确激活（如果使用）"
+            echo "可能的原因和解决方案："
+            echo "1. 确保在正确的项目目录中运行"
+            echo "   pwd  # 检查当前目录"
+            echo "   ls | grep database.py  # 应该看到database.py文件"
+            echo
+            echo "2. 手动设置Python路径："
+            echo "   export PYTHONPATH=\$PYTHONPATH:\$(pwd)"
+            echo
+            echo "3. 重新下载完整项目："
+            echo "   git clone https://github.com/TPE1314/sgr.git"
+            echo
+            echo "4. 测试数据库导入："
+            echo "   python3 -c \"from database import DatabaseManager; print('成功!')\""
             echo
             read -p "是否继续安装? (y/n): " -n 1 -r
             echo
             if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_error "安装已取消"
                 exit 1
             fi
+            log_warning "用户选择继续安装，将尝试基础初始化..."
         fi
     fi
     
-    # 使用独立的数据库初始化脚本
-    if python3 init_database.py; then
+    # 使用独立的数据库初始化脚本（如果存在）
+    if [[ -f "init_database.py" ]] && python3 init_database.py >/dev/null 2>&1; then
         log_success "数据库初始化成功"
     else
-        log_warning "数据库初始化过程中出现问题，尝试基础初始化..."
+        log_warning "独立脚本不可用，尝试内置修复..."
         
-        # 尝试最基础的数据库初始化
+        # 使用内置快速修复逻辑
+        log_info "尝试内置快速修复..."
+        
+        # 设置Python路径
+        export PYTHONPATH="$PYTHONPATH:$(pwd)"
+        
+        # 激活虚拟环境（如果存在）
+        if [[ -d "venv" && -f "venv/bin/activate" ]]; then
+            source venv/bin/activate
+        fi
+        
+        # 测试并初始化
+        if python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+
+# 测试导入
+from database import DatabaseManager
+
+# 初始化数据库
+db = DatabaseManager('telegram_bot.db')
+
+# 创建必要目录
+for directory in ['logs', 'pids', 'backups', 'temp']:
+    os.makedirs(directory, exist_ok=True)
+
+print('内置修复成功')
+" >/dev/null 2>&1; then
+            log_success "内置修复成功"
+        else
+            log_warning "内置修复失败，使用最基础的初始化..."
+            
+            # 尝试最基础的数据库初始化
         if python3 -c "
 import sys
 import os
@@ -1682,15 +1767,19 @@ except Exception as e:
     print(f'[ERROR] 基础数据库初始化失败: {e}')
     exit(1)
 "; then
-            log_success "基础数据库初始化成功"
-        else
-            log_error "数据库初始化完全失败"
-            echo -e "${RED}可能的原因:${NC}"
-            echo "1. database.py文件缺失"
-            echo "2. Python环境问题"  
-            echo "3. 权限问题"
-            echo "4. 磁盘空间不足"
-            exit 1
+                log_success "基础数据库初始化成功"
+            else
+                log_error "数据库初始化完全失败"
+                echo -e "${RED}可能的原因:${NC}"
+                echo "1. database.py文件缺失"
+                echo "2. Python环境问题"  
+                echo "3. 权限问题"
+                echo "4. 磁盘空间不足"
+                echo
+                echo "🚀 快速修复命令："
+                echo "export PYTHONPATH=\$PYTHONPATH:\$(pwd) && python3 -c \"from database import DatabaseManager; print('修复成功!')\""
+                exit 1
+            fi
         fi
     fi
     
