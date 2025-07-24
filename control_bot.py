@@ -18,6 +18,10 @@ from hot_update_service import HotUpdateService
 from database import DatabaseManager
 from update_service import UpdateService
 from file_update_service import FileUpdateService
+from advertisement_manager import (
+    get_ad_manager, initialize_ad_manager, Advertisement, AdType, 
+    AdPosition, AdStatus, AdDisplayConfig
+)
 
 # 配置日志
 logging.basicConfig(
@@ -37,6 +41,12 @@ class ControlBot:
         self.hot_update = HotUpdateService()
         self.update_service = UpdateService()
         self.file_update = FileUpdateService()
+        
+        # 初始化广告管理器
+        try:
+            self.ad_manager = initialize_ad_manager(self.config.get_db_file())
+        except:
+            self.ad_manager = get_ad_manager()
         self.app = None
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -99,6 +109,10 @@ class ControlBot:
                 [
                     InlineKeyboardButton("📁 文件更新历史", callback_data="file_update_history"),
                     InlineKeyboardButton("🔄 一键更新", callback_data="one_click_update")
+                ],
+                [
+                    InlineKeyboardButton("📢 广告管理", callback_data="ad_management"),
+                    InlineKeyboardButton("📊 广告统计", callback_data="ad_statistics")
                 ]
             ])
         else:
@@ -491,6 +505,32 @@ class ControlBot:
         elif data.startswith("restart_bots_"):
             bot_names = data.replace("restart_bots_", "").split(",")
             await self.restart_suggested_bots(query, bot_names)
+        elif data == "ad_management":
+            await self.show_ad_management(query)
+        elif data == "ad_statistics":
+            await self.show_ad_statistics(query)
+        elif data == "create_ad":
+            await self.prompt_create_ad(query)
+        elif data == "ad_list":
+            await self.show_ad_list(query)
+        elif data == "ad_config":
+            await self.show_ad_config(query)
+        elif data.startswith("edit_ad_"):
+            ad_id = int(data.replace("edit_ad_", ""))
+            await self.show_edit_ad(query, ad_id)
+        elif data.startswith("delete_ad_"):
+            ad_id = int(data.replace("delete_ad_", ""))
+            await self.confirm_delete_ad(query, ad_id)
+        elif data.startswith("confirm_delete_ad_"):
+            ad_id = int(data.replace("confirm_delete_ad_", ""))
+            await self.delete_ad_action(query, ad_id)
+        elif data.startswith("toggle_ad_"):
+            ad_id = int(data.replace("toggle_ad_", ""))
+            await self.toggle_ad_status(query, ad_id)
+        elif data == "toggle_ad_system":
+            await self.toggle_ad_system(query)
+        elif data == "back_to_main":
+            await self.start_command_from_callback(query)
     
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """帮助命令"""
@@ -514,6 +554,15 @@ class ControlBot:
 /update - 执行系统更新
 /add_admin <用户ID> <权限> - 添加管理员
 /remove_admin <用户ID> - 移除管理员
+
+📢 **广告管理：**
+/ads - 广告管理面板
+/create_ad <类型> <参数> - 创建广告
+
+**广告类型：**
+• text - 文本广告
+• link - 链接广告  
+• button - 按钮广告
 
 📁 **文件更新 (直接发送文件)：**
 • 📄 **单文件更新** - 发送 .py/.ini/.txt/.md/.sh 等文件
@@ -1201,6 +1250,8 @@ class ControlBot:
         self.app.add_handler(CommandHandler("add_admin", self.add_admin_command))
         self.app.add_handler(CommandHandler("remove_admin", self.remove_admin_command))
         self.app.add_handler(CommandHandler("update", self.update_command))
+        self.app.add_handler(CommandHandler("create_ad", self.create_ad_command))
+        self.app.add_handler(CommandHandler("ads", self.ads_command))
         
         # 文件处理器
         self.app.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
@@ -1212,6 +1263,719 @@ class ControlBot:
         
         # 启动机器人
         self.app.run_polling(drop_pending_updates=True)
+    
+    # ==================== 广告管理功能 ====================
+    
+    async def show_ad_management(self, query):
+        """显示广告管理主菜单"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        # 获取广告统计
+        stats = self.ad_manager.get_ad_statistics()
+        config = self.ad_manager.config
+        
+        text = f"""
+📢 **广告管理系统**
+
+📊 **系统状态:**
+• 广告系统: {'🟢 启用' if config.enabled else '🔴 禁用'}
+• 总广告数: {stats.get('total_ads', 0)}
+• 活跃广告: {stats.get('active_ads', 0)}
+• 总展示数: {stats.get('total_displays', 0)}
+
+⚙️ **配置信息:**
+• 每篇最大广告数: {config.max_ads_per_post}
+• 显示广告标签: {'是' if config.show_ad_label else '否'}
+• 随机选择: {'是' if config.random_selection else '否'}
+        """
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("➕ 创建广告", callback_data="create_ad"),
+                InlineKeyboardButton("📋 广告列表", callback_data="ad_list")
+            ],
+            [
+                InlineKeyboardButton("⚙️ 系统配置", callback_data="ad_config"),
+                InlineKeyboardButton("📊 统计报告", callback_data="ad_statistics")
+            ],
+            [
+                InlineKeyboardButton(
+                    f"{'🔴 禁用' if config.enabled else '🟢 启用'}广告系统",
+                    callback_data="toggle_ad_system"
+                )
+            ],
+            [InlineKeyboardButton("🔙 返回主菜单", callback_data="back_to_main")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def show_ad_statistics(self, query):
+        """显示广告统计信息"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        # 获取总体统计
+        overall_stats = self.ad_manager.get_ad_statistics()
+        
+        # 获取所有广告
+        all_ads = self.ad_manager.get_advertisements()
+        
+        text = f"""
+📊 **广告统计报告**
+
+📈 **总体数据:**
+• 总广告数: {overall_stats.get('total_ads', 0)}
+• 活跃广告: {overall_stats.get('active_ads', 0)}
+• 总展示次数: {overall_stats.get('total_displays', 0):,}
+• 总点击次数: {overall_stats.get('total_clicks', 0):,}
+• 整体点击率: {overall_stats.get('overall_ctr', 0):.2f}%
+
+📋 **按状态分类:**
+        """
+        
+        # 按状态统计
+        status_counts = {}
+        for ad in all_ads:
+            status = ad.status.value
+            status_counts[status] = status_counts.get(status, 0) + 1
+        
+        status_names = {
+            'active': '🟢 活跃',
+            'paused': '🟡 暂停',
+            'expired': '🔴 过期',
+            'draft': '📝 草稿'
+        }
+        
+        for status, count in status_counts.items():
+            name = status_names.get(status, status)
+            text += f"• {name}: {count}\n"
+        
+        # 按位置统计
+        position_counts = {}
+        for ad in all_ads:
+            pos = ad.position.value
+            position_counts[pos] = position_counts.get(pos, 0) + 1
+        
+        text += f"\n📍 **按位置分类:**\n"
+        position_names = {
+            'before_content': '📤 内容前',
+            'after_content': '📥 内容后',
+            'middle_content': '🔄 内容中'
+        }
+        
+        for pos, count in position_counts.items():
+            name = position_names.get(pos, pos)
+            text += f"• {name}: {count}\n"
+        
+        # Top 5 表现最佳的广告
+        active_ads = [ad for ad in all_ads if ad.status == AdStatus.ACTIVE]
+        if active_ads:
+            # 按点击率排序
+            sorted_ads = sorted(active_ads, 
+                              key=lambda x: (x.click_count / max(x.display_count, 1)), 
+                              reverse=True)[:5]
+            
+            text += f"\n🏆 **表现最佳广告:**\n"
+            for i, ad in enumerate(sorted_ads, 1):
+                ctr = (ad.click_count / max(ad.display_count, 1)) * 100
+                text += f"{i}. {ad.name} - CTR: {ctr:.1f}%\n"
+        
+        keyboard = [
+            [InlineKeyboardButton("🔄 刷新数据", callback_data="ad_statistics")],
+            [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def show_ad_list(self, query):
+        """显示广告列表"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        ads = self.ad_manager.get_advertisements()
+        
+        if not ads:
+            text = "📝 **广告列表**\n\n暂无广告，点击下方按钮创建第一个广告。"
+            keyboard = [
+                [InlineKeyboardButton("➕ 创建广告", callback_data="create_ad")],
+                [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
+            ]
+        else:
+            text = f"📝 **广告列表** (共 {len(ads)} 个)\n\n"
+            
+            keyboard = []
+            for ad in ads[:10]:  # 显示前10个广告
+                # 状态图标
+                status_icons = {
+                    AdStatus.ACTIVE: '🟢',
+                    AdStatus.PAUSED: '🟡',
+                    AdStatus.EXPIRED: '🔴',
+                    AdStatus.DRAFT: '📝'
+                }
+                status_icon = status_icons.get(ad.status, '❓')
+                
+                # 类型图标
+                type_icons = {
+                    AdType.TEXT: '📝',
+                    AdType.LINK: '🔗',
+                    AdType.IMAGE: '🖼️',
+                    AdType.VIDEO: '🎬',
+                    AdType.BUTTON: '🔘'
+                }
+                type_icon = type_icons.get(ad.type, '❓')
+                
+                text += f"{status_icon} {type_icon} **{ad.name}**\n"
+                text += f"   展示: {ad.display_count} | 点击: {ad.click_count}\n\n"
+                
+                keyboard.append([
+                    InlineKeyboardButton(f"✏️ {ad.name}", callback_data=f"edit_ad_{ad.id}"),
+                    InlineKeyboardButton(
+                        "🔴 暂停" if ad.status == AdStatus.ACTIVE else "🟢 启用",
+                        callback_data=f"toggle_ad_{ad.id}"
+                    )
+                ])
+            
+            if len(ads) > 10:
+                text += f"... 还有 {len(ads) - 10} 个广告"
+            
+            keyboard.extend([
+                [InlineKeyboardButton("➕ 创建新广告", callback_data="create_ad")],
+                [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
+            ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def prompt_create_ad(self, query):
+        """提示创建广告"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        text = """
+➕ **创建新广告**
+
+请使用以下命令创建广告：
+
+**文本广告:**
+`/create_ad text <广告名称>
+<广告内容>`
+
+**链接广告:**
+`/create_ad link <广告名称> <链接地址>
+<广告内容>`
+
+**按钮广告:**
+`/create_ad button <广告名称> <链接地址> <按钮文字>
+<广告内容>`
+
+**示例:**
+```
+/create_ad text 欢迎广告
+🎉 欢迎来到我们的频道！
+订阅获取更多精彩内容。
+```
+
+```
+/create_ad link 官网推广 https://example.com
+🌐 访问我们的官方网站
+获取更多信息和服务。
+```
+
+**说明:**
+• 广告默认位置为内容后
+• 广告默认状态为草稿，需要手动启用
+• 支持Markdown格式
+        """
+        
+        keyboard = [
+            [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def show_ad_config(self, query):
+        """显示广告系统配置"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        config = self.ad_manager.config
+        
+        text = f"""
+⚙️ **广告系统配置**
+
+🔧 **当前设置:**
+• 系统状态: {'🟢 启用' if config.enabled else '🔴 禁用'}
+• 每篇最大广告数: {config.max_ads_per_post}
+• 每篇最小广告数: {config.min_ads_per_post}
+• 显示广告标签: {'✅ 是' if config.show_ad_label else '❌ 否'}
+• 随机选择广告: {'✅ 是' if config.random_selection else '❌ 否'}
+
+📝 **广告分隔符:**
+```
+{config.ad_separator.replace('\n', '\\n')}
+```
+
+💡 **说明:**
+• 广告标签会在广告内容前显示 "📢 广告"
+• 随机选择会根据权重随机选择广告
+• 分隔符用于分隔多个广告
+        """
+        
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    f"{'🔴 禁用' if config.enabled else '🟢 启用'}广告系统",
+                    callback_data="toggle_ad_system"
+                )
+            ],
+            [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def toggle_ad_system(self, query):
+        """切换广告系统启用状态"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_super_admin(user_id):
+            await query.answer("❌ 需要超级管理员权限", show_alert=True)
+            return
+        
+        config = self.ad_manager.config
+        config.enabled = not config.enabled
+        
+        if self.ad_manager.update_config(config):
+            status = "启用" if config.enabled else "禁用"
+            await query.answer(f"✅ 广告系统已{status}", show_alert=True)
+            await self.show_ad_config(query)
+        else:
+            await query.answer("❌ 配置更新失败", show_alert=True)
+    
+    async def show_edit_ad(self, query, ad_id: int):
+        """显示广告编辑界面"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        ad = self.ad_manager.get_advertisement(ad_id)
+        if not ad:
+            await query.answer("❌ 广告不存在", show_alert=True)
+            return
+        
+        # 状态和类型显示
+        status_names = {
+            AdStatus.ACTIVE: '🟢 活跃',
+            AdStatus.PAUSED: '🟡 暂停',
+            AdStatus.EXPIRED: '🔴 过期',
+            AdStatus.DRAFT: '📝 草稿'
+        }
+        
+        type_names = {
+            AdType.TEXT: '📝 文本',
+            AdType.LINK: '🔗 链接',
+            AdType.IMAGE: '🖼️ 图片',
+            AdType.VIDEO: '🎬 视频',
+            AdType.BUTTON: '🔘 按钮'
+        }
+        
+        position_names = {
+            AdPosition.BEFORE_CONTENT: '📤 内容前',
+            AdPosition.AFTER_CONTENT: '📥 内容后',
+            AdPosition.MIDDLE_CONTENT: '🔄 内容中'
+        }
+        
+        text = f"""
+✏️ **编辑广告: {ad.name}**
+
+📋 **基本信息:**
+• ID: {ad.id}
+• 名称: {ad.name}
+• 类型: {type_names.get(ad.type, ad.type.value)}
+• 状态: {status_names.get(ad.status, ad.status.value)}
+• 位置: {position_names.get(ad.position, ad.position.value)}
+
+📊 **统计数据:**
+• 展示次数: {ad.display_count:,}
+• 点击次数: {ad.click_count:,}
+• 点击率: {(ad.click_count / max(ad.display_count, 1) * 100):.2f}%
+• 优先级: {ad.priority}
+• 权重: {ad.weight}
+
+📄 **内容预览:**
+{ad.content[:200]}{'...' if len(ad.content) > 200 else ''}
+        """
+        
+        if ad.url:
+            text += f"\n🔗 **链接:** {ad.url}"
+        
+        if ad.button_text:
+            text += f"\n🔘 **按钮文字:** {ad.button_text}"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "🔴 暂停" if ad.status == AdStatus.ACTIVE else "🟢 启用",
+                    callback_data=f"toggle_ad_{ad.id}"
+                ),
+                InlineKeyboardButton("🗑️ 删除", callback_data=f"delete_ad_{ad.id}")
+            ],
+            [InlineKeyboardButton("🔙 返回列表", callback_data="ad_list")]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def toggle_ad_status(self, query, ad_id: int):
+        """切换广告状态"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        ad = self.ad_manager.get_advertisement(ad_id)
+        if not ad:
+            await query.answer("❌ 广告不存在", show_alert=True)
+            return
+        
+        # 切换状态
+        new_status = AdStatus.PAUSED if ad.status == AdStatus.ACTIVE else AdStatus.ACTIVE
+        
+        if self.ad_manager.update_advertisement(ad_id, {'status': new_status.value}):
+            status_name = "启用" if new_status == AdStatus.ACTIVE else "暂停"
+            await query.answer(f"✅ 广告已{status_name}", show_alert=True)
+            await self.show_edit_ad(query, ad_id)
+        else:
+            await query.answer("❌ 更新失败", show_alert=True)
+    
+    async def confirm_delete_ad(self, query, ad_id: int):
+        """确认删除广告"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        ad = self.ad_manager.get_advertisement(ad_id)
+        if not ad:
+            await query.answer("❌ 广告不存在", show_alert=True)
+            return
+        
+        text = f"""
+🗑️ **确认删除广告**
+
+**广告信息:**
+• 名称: {ad.name}
+• 展示次数: {ad.display_count:,}
+• 点击次数: {ad.click_count:,}
+
+⚠️ **警告:** 删除操作不可恢复！
+        """
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ 确认删除", callback_data=f"confirm_delete_ad_{ad_id}"),
+                InlineKeyboardButton("❌ 取消", callback_data=f"edit_ad_{ad_id}")
+            ]
+        ]
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+        except:
+            await query.message.reply_text(text, reply_markup=reply_markup, parse_mode=ParseMode.MARKDOWN)
+    
+    async def delete_ad_action(self, query, ad_id: int):
+        """执行删除广告"""
+        user_id = query.from_user.id
+        
+        if not self.config.is_admin(user_id):
+            await query.answer("❌ 权限不足", show_alert=True)
+            return
+        
+        if self.ad_manager.delete_advertisement(ad_id):
+            await query.answer("✅ 广告已删除", show_alert=True)
+            await self.show_ad_list(query)
+        else:
+            await query.answer("❌ 删除失败", show_alert=True)
+    
+    async def create_ad_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """创建广告命令"""
+        user_id = update.effective_user.id
+        
+        if not self.config.is_admin(user_id):
+            await update.message.reply_text("❌ 您没有权限使用此命令。")
+            return
+        
+        if not context.args:
+            await update.message.reply_text("""
+❌ **使用方法:**
+
+**文本广告:**
+`/create_ad text <广告名称>
+<广告内容>`
+
+**链接广告:**
+`/create_ad link <广告名称> <链接地址>
+<广告内容>`
+
+**按钮广告:**
+`/create_ad button <广告名称> <链接地址> <按钮文字>
+<广告内容>`
+            """, parse_mode=ParseMode.MARKDOWN)
+            return
+        
+        ad_type_str = context.args[0].lower()
+        
+        try:
+            if ad_type_str == 'text':
+                if len(context.args) < 2:
+                    await update.message.reply_text("❌ 请提供广告名称和内容")
+                    return
+                
+                # 解析参数
+                message_text = update.message.text
+                lines = message_text.split('\n', 2)
+                if len(lines) < 3:
+                    await update.message.reply_text("❌ 请在新行提供广告内容")
+                    return
+                
+                ad_name = context.args[1]
+                ad_content = lines[2]
+                
+                ad = Advertisement(
+                    id=0,  # 将由数据库自动分配
+                    name=ad_name,
+                    type=AdType.TEXT,
+                    position=AdPosition.AFTER_CONTENT,
+                    content=ad_content,
+                    created_by=user_id,
+                    status=AdStatus.DRAFT
+                )
+                
+            elif ad_type_str == 'link':
+                if len(context.args) < 3:
+                    await update.message.reply_text("❌ 请提供广告名称、链接地址和内容")
+                    return
+                
+                message_text = update.message.text
+                lines = message_text.split('\n', 2)
+                if len(lines) < 3:
+                    await update.message.reply_text("❌ 请在新行提供广告内容")
+                    return
+                
+                ad_name = context.args[1]
+                ad_url = context.args[2]
+                ad_content = lines[2]
+                
+                ad = Advertisement(
+                    id=0,
+                    name=ad_name,
+                    type=AdType.LINK,
+                    position=AdPosition.AFTER_CONTENT,
+                    content=ad_content,
+                    url=ad_url,
+                    created_by=user_id,
+                    status=AdStatus.DRAFT
+                )
+                
+            elif ad_type_str == 'button':
+                if len(context.args) < 4:
+                    await update.message.reply_text("❌ 请提供广告名称、链接地址、按钮文字和内容")
+                    return
+                
+                message_text = update.message.text
+                lines = message_text.split('\n', 2)
+                if len(lines) < 3:
+                    await update.message.reply_text("❌ 请在新行提供广告内容")
+                    return
+                
+                ad_name = context.args[1]
+                ad_url = context.args[2]
+                button_text = context.args[3]
+                ad_content = lines[2]
+                
+                ad = Advertisement(
+                    id=0,
+                    name=ad_name,
+                    type=AdType.BUTTON,
+                    position=AdPosition.AFTER_CONTENT,
+                    content=ad_content,
+                    url=ad_url,
+                    button_text=button_text,
+                    created_by=user_id,
+                    status=AdStatus.DRAFT
+                )
+                
+            else:
+                await update.message.reply_text("❌ 不支持的广告类型。支持: text, link, button")
+                return
+            
+            # 创建广告
+            ad_id = self.ad_manager.create_advertisement(ad)
+            
+            await update.message.reply_text(f"""
+✅ **广告创建成功！**
+
+• 广告ID: {ad_id}
+• 名称: {ad.name}
+• 类型: {ad.type.value}
+• 状态: 草稿 (需要手动启用)
+
+使用 `/ads` 命令管理您的广告。
+            """, parse_mode=ParseMode.MARKDOWN)
+            
+        except Exception as e:
+            logger.error(f"创建广告失败: {e}")
+            await update.message.reply_text(f"❌ 创建广告失败: {e}")
+    
+    async def ads_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """广告管理命令"""
+        user_id = update.effective_user.id
+        
+        if not self.config.is_admin(user_id):
+            await update.message.reply_text("❌ 您没有权限使用此命令。")
+            return
+        
+        # 创建一个虚拟的query对象来复用现有方法
+        class MockQuery:
+            def __init__(self, message):
+                self.message = message
+                self.from_user = message.from_user
+        
+        mock_query = MockQuery(update.message)
+        await self.show_ad_management(mock_query)
+    
+    async def start_command_from_callback(self, query):
+        """从回调显示开始菜单"""
+        user_id = query.from_user.id
+        admin_level = self.config.get_admin_level(user_id)
+        
+        if admin_level == "none":
+            await query.answer("❌ 您没有权限使用此机器人。", show_alert=True)
+            return
+        
+        user_name = query.from_user.first_name or query.from_user.username
+        
+        welcome_text = f"""
+🎛️ **机器人控制面板**
+
+👋 欢迎 {user_name}！ (权限: {admin_level})
+
+🤖 **机器人管理：**
+• 启动/停止/重启机器人
+• 热更新配置
+• 实时状态监控
+
+👨‍💼 **管理员功能：**
+• 添加/移除动态管理员
+• 查看操作日志
+• 系统资源监控
+
+📋 **快速操作：**
+使用下方按钮进行管理
+        """
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("📊 机器人状态", callback_data="show_status"),
+                InlineKeyboardButton("💻 系统信息", callback_data="system_info")
+            ],
+            [
+                InlineKeyboardButton("🚀 启动全部", callback_data="start_all"),
+                InlineKeyboardButton("🛑 停止全部", callback_data="stop_all")
+            ],
+            [
+                InlineKeyboardButton("🔄 重启全部", callback_data="restart_all"),
+                InlineKeyboardButton("🔥 热更新", callback_data="hot_reload_all")
+            ]
+        ]
+        
+        if admin_level == "super":
+            keyboard.extend([
+                [
+                    InlineKeyboardButton("👨‍💼 管理员列表", callback_data="admin_list"),
+                    InlineKeyboardButton("➕ 添加管理员", callback_data="add_admin")
+                ],
+                [
+                    InlineKeyboardButton("📋 操作日志", callback_data="show_logs"),
+                    InlineKeyboardButton("⚙️ 系统配置", callback_data="system_config")
+                ],
+                [
+                    InlineKeyboardButton("📁 文件更新历史", callback_data="file_update_history"),
+                    InlineKeyboardButton("🔄 一键更新", callback_data="one_click_update")
+                ],
+                [
+                    InlineKeyboardButton("📢 广告管理", callback_data="ad_management"),
+                    InlineKeyboardButton("📊 广告统计", callback_data="ad_statistics")
+                ]
+            ])
+        else:
+            keyboard.append([
+                InlineKeyboardButton("📋 查看日志", callback_data="show_logs")
+            ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            await query.edit_message_text(
+                welcome_text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+            )
+        except:
+            await query.message.reply_text(
+                welcome_text,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=reply_markup
+            )
 
 if __name__ == '__main__':
     bot = ControlBot()

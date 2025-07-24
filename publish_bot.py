@@ -8,6 +8,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 from telegram.constants import ParseMode
 from database import DatabaseManager
 from config_manager import ConfigManager
+from advertisement_manager import get_ad_manager, initialize_ad_manager, AdPosition
 
 # 配置日志
 logging.basicConfig(
@@ -24,6 +25,13 @@ class PublishBot:
     def __init__(self):
         self.config = ConfigManager()
         self.db = DatabaseManager(self.config.get_db_file())
+        
+        # 初始化广告管理器
+        try:
+            self.ad_manager = initialize_ad_manager(self.config.get_db_file())
+        except:
+            self.ad_manager = get_ad_manager()
+        
         self.app = None
         self.publisher_bot = None  # 用于发布到频道的独立bot实例
     
@@ -405,58 +413,139 @@ class PublishBot:
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     async def publish_to_channel(self, submission):
-        """发布到频道"""
+        """发布到频道（含广告）"""
         if not self.publisher_bot:
             self.publisher_bot = Bot(token=self.config.get_publish_bot_token())
         
         channel_id = self.config.get_channel_id()
         
         try:
-            if submission['content_type'] == 'text':
-                await self.publisher_bot.send_message(
-                    chat_id=channel_id,
-                    text=submission['content'],
-                    parse_mode=ParseMode.MARKDOWN
-                )
-            elif submission['content_type'] == 'photo':
-                await self.publisher_bot.send_photo(
-                    chat_id=channel_id,
-                    photo=submission['media_file_id'],
-                    caption=submission['caption'],
-                    parse_mode=ParseMode.MARKDOWN
-                )
-            elif submission['content_type'] == 'video':
-                await self.publisher_bot.send_video(
-                    chat_id=channel_id,
-                    video=submission['media_file_id'],
-                    caption=submission['caption'],
-                    parse_mode=ParseMode.MARKDOWN
-                )
-            elif submission['content_type'] == 'document':
-                await self.publisher_bot.send_document(
-                    chat_id=channel_id,
-                    document=submission['media_file_id'],
-                    caption=submission['caption'],
-                    parse_mode=ParseMode.MARKDOWN
-                )
-            elif submission['content_type'] == 'voice':
-                await self.publisher_bot.send_voice(
-                    chat_id=channel_id,
-                    voice=submission['media_file_id'],
-                    caption=submission['caption']
-                )
-            elif submission['content_type'] == 'audio':
-                await self.publisher_bot.send_audio(
-                    chat_id=channel_id,
-                    audio=submission['media_file_id'],
-                    caption=submission['caption']
-                )
+            # 选择合适的广告
+            ads_by_position = self.ad_manager.select_ads_for_content(
+                content_type=submission['content_type'],
+                target_positions=[AdPosition.BEFORE_CONTENT, AdPosition.AFTER_CONTENT]
+            )
             
-            logger.info(f"投稿 #{submission['id']} 已发布到频道")
+            # 格式化广告
+            formatted_ads = self.ad_manager.format_ads_for_display(ads_by_position)
+            
+            # 准备内容和标题
+            original_content = submission.get('content', '')
+            original_caption = submission.get('caption', '')
+            
+            # 根据内容类型构建最终内容
+            if submission['content_type'] == 'text':
+                # 文本投稿：前置广告 + 原内容 + 后置广告
+                final_text = self._build_content_with_ads(original_content, formatted_ads)
+                
+                message = await self.publisher_bot.send_message(
+                    chat_id=channel_id,
+                    text=final_text,
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                
+            else:
+                # 媒体投稿：原内容作为媒体，广告加在caption中
+                final_caption = self._build_content_with_ads(original_caption, formatted_ads)
+                
+                if submission['content_type'] == 'photo':
+                    message = await self.publisher_bot.send_photo(
+                        chat_id=channel_id,
+                        photo=submission['media_file_id'],
+                        caption=final_caption,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                elif submission['content_type'] == 'video':
+                    message = await self.publisher_bot.send_video(
+                        chat_id=channel_id,
+                        video=submission['media_file_id'],
+                        caption=final_caption,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                elif submission['content_type'] == 'document':
+                    message = await self.publisher_bot.send_document(
+                        chat_id=channel_id,
+                        document=submission['media_file_id'],
+                        caption=final_caption,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+                elif submission['content_type'] == 'voice':
+                    message = await self.publisher_bot.send_voice(
+                        chat_id=channel_id,
+                        voice=submission['media_file_id'],
+                        caption=final_caption
+                    )
+                elif submission['content_type'] == 'audio':
+                    message = await self.publisher_bot.send_audio(
+                        chat_id=channel_id,
+                        audio=submission['media_file_id'],
+                        caption=final_caption
+                    )
+                else:
+                    # 其他类型使用通用处理
+                    final_text = self._build_content_with_ads(original_content, formatted_ads)
+                    message = await self.publisher_bot.send_message(
+                        chat_id=channel_id,
+                        text=final_text,
+                        parse_mode=ParseMode.MARKDOWN
+                    )
+            
+            # 记录广告展示
+            await self._record_ad_displays(ads_by_position, submission['id'], message.message_id)
+            
+            logger.info(f"投稿 #{submission['id']} 已发布到频道（含{len(sum(ads_by_position.values(), []))}个广告）")
             
         except Exception as e:
             logger.error(f"发布投稿 #{submission['id']} 到频道失败: {e}")
             raise e
+    
+    def _build_content_with_ads(self, original_content: str, formatted_ads: dict) -> str:
+        """
+        构建包含广告的内容
+        
+        Args:
+            original_content: 原始内容
+            formatted_ads: 格式化后的广告
+            
+        Returns:
+            str: 包含广告的完整内容
+        """
+        parts = []
+        
+        # 前置广告
+        if formatted_ads.get('before'):
+            parts.append(formatted_ads['before'])
+        
+        # 原始内容
+        if original_content:
+            parts.append(original_content)
+        
+        # 后置广告
+        if formatted_ads.get('after'):
+            parts.append(formatted_ads['after'])
+        
+        return '\n\n'.join(parts) if parts else original_content
+    
+    async def _record_ad_displays(self, ads_by_position: dict, submission_id: int, channel_message_id: int):
+        """
+        记录广告展示
+        
+        Args:
+            ads_by_position: 按位置分组的广告
+            submission_id: 投稿ID
+            channel_message_id: 频道消息ID
+        """
+        try:
+            for position, ads in ads_by_position.items():
+                for ad in ads:
+                    self.ad_manager.record_ad_display(
+                        ad_id=ad.id,
+                        submission_id=submission_id,
+                        channel_message_id=channel_message_id,
+                        position=position
+                    )
+        except Exception as e:
+            logger.warning(f"记录广告展示失败: {e}")
     
     async def show_next_submission(self, query):
         """显示下一个待审核投稿"""
