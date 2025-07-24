@@ -336,11 +336,18 @@ class SubmissionBot:
         self.app.add_handler(CommandHandler("help", self.help_command))
         
         # 消息处理器
+        # 消息处理器
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_submission))
         self.app.add_handler(MessageHandler(filters.PHOTO, self.handle_photo_submission))
         self.app.add_handler(MessageHandler(filters.VIDEO, self.handle_video_submission))
+        self.app.add_handler(MessageHandler(filters.VIDEO_NOTE, self.handle_video_note_submission))
         self.app.add_handler(MessageHandler(filters.DOCUMENT, self.handle_document_submission))
-        self.app.add_handler(MessageHandler(filters.AUDIO | filters.VOICE, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler(filters.AUDIO, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler(filters.VOICE, self.handle_voice_submission))
+        self.app.add_handler(MessageHandler(filters.STICKER, self.handle_sticker_submission))
+        self.app.add_handler(MessageHandler(filters.ANIMATION, self.handle_animation_submission))
+        self.app.add_handler(MessageHandler(filters.LOCATION, self.handle_location_submission))
+        self.app.add_handler(MessageHandler(filters.CONTACT, self.handle_contact_submission))
         
         logger.info("投稿机器人启动中...")
         
