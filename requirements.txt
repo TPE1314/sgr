@@ -1,2 +1,19 @@
 python-telegram-bot==20.7
 psutil==5.9.0
+
+# 性能优化
+# 注意：这些是可选依赖，如果无法安装可以注释掉
+# redis==4.5.4  # 可选：Redis缓存支持
+
+# 多媒体处理
+Pillow==10.1.0          # 图片处理
+# pytesseract==0.3.10    # 可选：OCR文字识别，需要安装tesseract
+# moviepy==1.0.3         # 可选：视频处理
+# mutagen==1.47.0        # 可选：音频元数据
+
+# 国际化和时区
+pytz==2023.3             # 时区处理
+# babel==2.13.1          # 可选：本地化格式化
+
+# 数据处理
+dataclasses-json==0.6.3  # 数据类JSON序列化
