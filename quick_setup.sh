@@ -215,14 +215,10 @@ detect_system() {
         log_warning "无法检测磁盘空间"
     fi
     
-    # 检查网络连接
-    log_step "检查网络连接..."
-    if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
-        log_success "网络连接正常"
-    elif ping -c 1 114.114.114.114 >/dev/null 2>&1; then
-        log_success "网络连接正常 (使用国内DNS)"
-    else
-        log_warning "网络连接异常，可能影响依赖包下载"
+    # 网络诊断
+    if ! diagnose_network; then
+        log_warning "网络连接存在问题，但继续安装"
+        echo -e "${YELLOW}如果遇到下载失败，请检查网络连接${NC}"
     fi
     
     # 检查防火墙状态
@@ -237,6 +233,48 @@ detect_system() {
     fi
     
     log_success "系统检测完成"
+}
+
+# 网络诊断函数
+diagnose_network() {
+    log_step "诊断网络连接..."
+    
+    # 测试基本网络连接
+    local dns_servers=("8.8.8.8" "114.114.114.114" "1.1.1.1" "223.5.5.5")
+    local dns_working=false
+    
+    for dns in "${dns_servers[@]}"; do
+        if ping -c 1 -W 3 "$dns" >/dev/null 2>&1; then
+            log_success "DNS服务器 $dns 可达"
+            dns_working=true
+            break
+        fi
+    done
+    
+    if [[ "$dns_working" == "false" ]]; then
+        log_error "所有DNS服务器都无法访问"
+        return 1
+    fi
+    
+    # 测试Telegram API连接
+    log_step "测试Telegram API连接..."
+    
+    if curl -s --connect-timeout 10 --max-time 15 \
+        "https://api.telegram.org" >/dev/null 2>&1; then
+        log_success "Telegram API服务器可达"
+        return 0
+    else
+        log_warning "无法连接到Telegram API服务器"
+        
+        # 提供解决建议
+        echo -e "${CYAN}可能的解决方案:${NC}"
+        echo "1. 检查防火墙设置"
+        echo "2. 检查代理配置"
+        echo "3. 尝试使用VPN"
+        echo "4. 稍后重试"
+        
+        return 1
+    fi
 }
 
 # 智能检测包管理器
@@ -787,21 +825,134 @@ validate_token() {
     
     log_step "验证 $bot_name Token..."
     
-    local response=$(curl -s --connect-timeout 10 "https://api.telegram.org/bot$token/getMe")
+    # 检查Token格式
+    if [[ ! "$token" =~ ^[0-9]+:[a-zA-Z0-9_-]{35}$ ]]; then
+        log_error "$bot_name Token格式不正确"
+        log_error "正确格式: 数字:35位字符 (例: 123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA)"
+        return 1
+    fi
     
-    if echo "$response" | grep -q '"ok":true'; then
-        local bot_username=$(echo "$response" | python3 -c "
+    # 检查网络连接
+    if ! ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+        log_warning "网络连接检测失败，尝试其他DNS服务器..."
+        
+        # 尝试其他DNS服务器
+        if ping -c 1 114.114.114.114 >/dev/null 2>&1; then
+            log_info "网络连接正常 (使用国内DNS)"
+        elif ping -c 1 1.1.1.1 >/dev/null 2>&1; then
+            log_info "网络连接正常 (使用Cloudflare DNS)"
+        else
+            log_warning "网络连接异常，跳过Token验证"
+            log_info "$bot_name Token格式正确，将在启动时验证"
+            return 0
+        fi
+    fi
+    
+    # 使用curl验证Token
+    local response
+    local curl_exit_code
+    
+    response=$(curl -s --connect-timeout 15 --max-time 30 \
+        -w "%{http_code}" \
+        "https://api.telegram.org/bot$token/getMe" 2>/dev/null)
+    curl_exit_code=$?
+    
+    # 检查curl是否成功执行
+    if [[ $curl_exit_code -ne 0 ]]; then
+        log_warning "网络请求失败 (错误代码: $curl_exit_code)"
+        if [[ $curl_exit_code -eq 7 ]]; then
+            log_warning "无法连接到Telegram服务器，可能是网络问题"
+        elif [[ $curl_exit_code -eq 28 ]]; then
+            log_warning "请求超时，可能是网络较慢"
+        fi
+        log_info "$bot_name Token格式正确，将在启动时验证"
+        return 0
+    fi
+    
+    # 提取HTTP状态码和响应内容
+    local http_code="${response: -3}"
+    local json_response="${response%???}"
+    
+    # 检查HTTP状态码
+    if [[ "$http_code" != "200" ]]; then
+        log_error "$bot_name Token验证失败 (HTTP $http_code)"
+        if [[ "$http_code" == "401" ]]; then
+            log_error "Token无效或已过期"
+        elif [[ "$http_code" == "403" ]]; then
+            log_error "Token被禁用"
+        else
+            log_error "服务器响应异常"
+        fi
+        return 1
+    fi
+    
+    # 解析JSON响应
+    if echo "$json_response" | grep -q '"ok":true'; then
+        # 安全地提取用户名
+        local bot_username
+        if command -v python3 >/dev/null 2>&1; then
+            bot_username=$(echo "$json_response" | python3 -c "
 import sys, json
 try:
     data = json.load(sys.stdin)
-    print(data['result']['username'])
-except:
+    if 'result' in data and 'username' in data['result']:
+        print(data['result']['username'])
+    else:
+        print('unknown')
+except Exception as e:
     print('unknown')
-")
+" 2>/dev/null)
+        else
+            # 如果没有python3，使用简单的文本解析
+            bot_username=$(echo "$json_response" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+            [[ -z "$bot_username" ]] && bot_username="unknown"
+        fi
+        
         log_success "$bot_name Token有效 (@$bot_username)"
         return 0
     else
-        log_error "$bot_name Token无效"
+        log_error "$bot_name Token验证失败"
+        
+        # 尝试提取错误信息
+        local error_description
+        if command -v python3 >/dev/null 2>&1; then
+            error_description=$(echo "$json_response" | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if 'description' in data:
+        print(data['description'])
+    else:
+        print('未知错误')
+except:
+    print('JSON解析失败')
+" 2>/dev/null)
+        else
+            error_description="请检查Token是否正确"
+        fi
+        
+        log_error "错误详情: $error_description"
+        return 1
+    fi
+}
+
+# 测试Token连接的快速验证
+quick_test_token() {
+    local token=$1
+    local timeout=${2:-5}
+    
+    # 快速格式检查
+    if [[ ! "$token" =~ ^[0-9]+:[a-zA-Z0-9_-]{35}$ ]]; then
+        return 1
+    fi
+    
+    # 快速网络测试
+    local response=$(timeout "$timeout" curl -s \
+        "https://api.telegram.org/bot$token/getMe" 2>/dev/null)
+    
+    if echo "$response" | grep -q '"ok":true'; then
+        return 0
+    else
         return 1
     fi
 }
@@ -877,6 +1028,11 @@ interactive_configuration() {
     echo -e "\n${CYAN}=== 🤖 机器人Token配置 ===${NC}"
     echo -e "${YELLOW}请依次输入三个机器人的Token${NC}"
     echo
+    echo -e "${CYAN}💡 Token格式说明:${NC}"
+    echo "• 格式: 数字:35位字符"
+    echo "• 示例: 123456789:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    echo "• 从 @BotFather 获取"
+    echo
     
     # 投稿机器人Token
     while true; do
@@ -885,7 +1041,16 @@ interactive_configuration() {
             if validate_token "$SUBMISSION_TOKEN" "投稿机器人"; then
                 break
             else
-                echo -e "${RED}Token验证失败，请重新输入${NC}"
+                echo -e "${RED}Token验证失败${NC}"
+                echo -e "${YELLOW}选项:${NC}"
+                echo "1) 重新输入Token"
+                echo "2) 跳过验证继续安装 (推荐在网络问题时使用)"
+                read -p "请选择 (1-2): " -n 1 -r
+                echo
+                if [[ $REPLY == "2" ]]; then
+                    log_warning "跳过Token验证，继续安装"
+                    break
+                fi
             fi
         else
             echo -e "${RED}Token不能为空，请重新输入${NC}"
@@ -899,7 +1064,16 @@ interactive_configuration() {
             if validate_token "$PUBLISH_TOKEN" "发布机器人"; then
                 break
             else
-                echo -e "${RED}Token验证失败，请重新输入${NC}"
+                echo -e "${RED}Token验证失败${NC}"
+                echo -e "${YELLOW}选项:${NC}"
+                echo "1) 重新输入Token"
+                echo "2) 跳过验证继续安装 (推荐在网络问题时使用)"
+                read -p "请选择 (1-2): " -n 1 -r
+                echo
+                if [[ $REPLY == "2" ]]; then
+                    log_warning "跳过Token验证，继续安装"
+                    break
+                fi
             fi
         else
             echo -e "${RED}Token不能为空，请重新输入${NC}"
@@ -913,7 +1087,16 @@ interactive_configuration() {
             if validate_token "$CONTROL_TOKEN" "控制机器人"; then
                 break
             else
-                echo -e "${RED}Token验证失败，请重新输入${NC}"
+                echo -e "${RED}Token验证失败${NC}"
+                echo -e "${YELLOW}选项:${NC}"
+                echo "1) 重新输入Token"
+                echo "2) 跳过验证继续安装 (推荐在网络问题时使用)"
+                read -p "请选择 (1-2): " -n 1 -r
+                echo
+                if [[ $REPLY == "2" ]]; then
+                    log_warning "跳过Token验证，继续安装"
+                    break
+                fi
             fi
         else
             echo -e "${RED}Token不能为空，请重新输入${NC}"
@@ -1330,6 +1513,7 @@ print(config.get('telegram', 'admin_bot_token'))
     local token_names=("投稿机器人" "发布机器人" "控制机器人")
     
     # 验证每个Token
+    local token_validation_failed=false
     for i in {0..2}; do
         local token=${token_array[$i]}
         local name=${token_names[$i]}
@@ -1337,10 +1521,34 @@ print(config.get('telegram', 'admin_bot_token'))
         if validate_token "$token" "$name"; then
             continue
         else
-            log_error "$name Token验证失败"
-            exit 1
+            log_warning "$name Token验证失败"
+            token_validation_failed=true
         fi
     done
+    
+    # 如果有Token验证失败，询问是否继续
+    if [[ "$token_validation_failed" == "true" ]]; then
+        echo
+        echo -e "${YELLOW}⚠️  Token验证失败，但您可以选择继续安装${NC}"
+        echo -e "${CYAN}原因可能是:${NC}"
+        echo "• 网络连接问题"
+        echo "• Telegram API暂时不可用"
+        echo "• Token格式错误"
+        echo
+        echo -e "${YELLOW}选项:${NC}"
+        echo "1) 停止安装，检查Token"
+        echo "2) 继续安装 (Token将在启动时验证)"
+        
+        read -p "请选择 (1-2): " -n 1 -r
+        echo
+        
+        if [[ $REPLY == "1" ]]; then
+            log_error "安装已停止，请检查Token配置"
+            exit 1
+        else
+            log_warning "继续安装，Token将在系统启动时验证"
+        fi
+    fi
     
     log_step "验证ID格式..."
     local id_check=$(python -c "
