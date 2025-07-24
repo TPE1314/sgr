@@ -1547,7 +1547,7 @@ class ControlBot:
 
 📝 **广告分隔符:**
 ```
-{config.ad_separator.replace('\n', '\\n')}
+{config.ad_separator.replace(chr(10), chr(92) + 'n')}
 ```
 
 💡 **说明:**

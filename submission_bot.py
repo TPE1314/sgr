@@ -542,7 +542,7 @@ class SubmissionBot:
         self.app.add_handler(MessageHandler(filters.PHOTO, self.handle_photo_submission))
         self.app.add_handler(MessageHandler(filters.VIDEO, self.handle_video_submission))
         self.app.add_handler(MessageHandler(filters.VIDEO_NOTE, self.handle_video_note_submission))
-        self.app.add_handler(MessageHandler(filters.DOCUMENT, self.handle_document_submission))
+        self.app.add_handler(MessageHandler(filters.Document.ALL, self.handle_document_submission))
         self.app.add_handler(MessageHandler(filters.AUDIO, self.handle_audio_submission))
         self.app.add_handler(MessageHandler(filters.VOICE, self.handle_voice_submission))
         self.app.add_handler(MessageHandler(filters.STICKER, self.handle_sticker_submission))
