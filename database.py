@@ -6,7 +6,14 @@ from typing import List, Dict, Optional
 class DatabaseManager:
     def __init__(self, db_file: str):
         self.db_file = db_file
+        self.conn = None  # 添加conn属性
         self.init_database()
+    
+    def get_connection(self):
+        """获取数据库连接"""
+        if self.conn is None or self.conn.execute("SELECT 1").fetchone() is None:
+            self.conn = sqlite3.connect(self.db_file)
+        return self.conn
     
     def init_database(self):
         """初始化数据库表"""
