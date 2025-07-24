@@ -317,14 +317,72 @@ download_project_files() {
     
     # 检查是否已在git仓库中
     if [[ -d ".git" ]]; then
-        log_success "检测到git仓库，跳过文件下载"
+        log_info "检测到git仓库，尝试更新到最新版本..."
         
         # 更新到最新版本
-        log_step "更新项目文件..."
+        log_step "⏳ 更新项目文件..."
+        
+        # 先检查当前状态
+        local current_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+        
+        # 尝试多种方式更新
+        local update_success=false
+        
+        # 方法1: 标准git pull
         if git pull origin main >/dev/null 2>&1; then
-            log_success "项目文件已更新到最新版本"
+            log_success "✅ git pull 更新成功"
+            update_success=true
         else
-            log_warning "git pull失败，继续使用现有文件"
+            log_warning "❌ git pull 失败，尝试其他方法..."
+            
+            # 方法2: 强制更新
+            log_step "🔄 尝试强制更新..."
+            if git fetch origin main >/dev/null 2>&1 && git reset --hard origin/main >/dev/null 2>&1; then
+                log_success "✅ 强制更新成功"
+                update_success=true
+            else
+                log_warning "❌ 强制更新失败，尝试重新下载..."
+                
+                # 方法3: 重新克隆
+                log_step "📥 重新下载最新版本..."
+                cd ..
+                local dir_name=$(basename "$PWD")
+                if rm -rf "$dir_name" && git clone https://github.com/TPE1314/sgr.git "$dir_name" >/dev/null 2>&1; then
+                    cd "$dir_name"
+                    log_success "✅ 重新下载成功"
+                    update_success=true
+                else
+                    log_error "❌ 重新下载失败"
+                    cd "$dir_name" 2>/dev/null || true
+                fi
+            fi
+        fi
+        
+        if $update_success; then
+            local new_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+            if [[ "$current_commit" != "$new_commit" ]]; then
+                log_success "🎉 已更新到最新版本 (v2.3.0)"
+            else
+                log_success "✅ 已是最新版本"
+            fi
+        else
+            log_error "❌ 更新失败，这将导致使用旧版本！"
+            echo
+            echo -e "${YELLOW}💡 建议解决方案：${NC}"
+            echo "1️⃣ 删除当前目录重新安装："
+            echo "   rm -rf $(pwd) && curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash"
+            echo
+            echo "2️⃣ 手动克隆最新版本："
+            echo "   git clone https://github.com/TPE1314/sgr.git new_sgr"
+            echo "   cd new_sgr && ./quick_setup.sh"
+            echo
+            read -p "是否继续使用当前版本安装? 可能存在已知问题 (y/n): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log_error "安装已取消"
+                exit 1
+            fi
+            log_warning "⚠️ 继续使用当前版本，可能遇到已知问题"
         fi
         return 0
     fi
@@ -346,24 +404,35 @@ download_project_files() {
     
     log_info "缺少 ${#missing_files[@]} 个核心文件，开始下载..."
     
-    # 方法1: 尝试克隆整个仓库
-    log_step "尝试克隆完整项目..."
+    # 方法1: 尝试克隆整个仓库 (获取最新v2.3.0版本)
+    log_step "📥 下载最新v2.3.0版本..."
     if git clone https://github.com/TPE1314/sgr.git temp_download >/dev/null 2>&1; then
-        log_info "复制文件到当前目录..."
+        log_success "✅ 最新版本下载成功"
+        log_info "📁 复制文件到当前目录..."
         
         # 复制所有Python文件和脚本
         if cp temp_download/*.py . 2>/dev/null; then
-            log_success "Python文件复制完成"
+            log_success "✅ Python文件复制完成"
         fi
         if cp temp_download/*.sh . 2>/dev/null; then
             chmod +x *.sh
-            log_success "脚本文件复制完成"
+            log_success "✅ 脚本文件复制完成"
         fi
         if cp temp_download/*.ini . 2>/dev/null; then
-            log_success "配置文件复制完成"
+            log_success "✅ 配置文件复制完成"
         fi
         if cp temp_download/*.md . 2>/dev/null; then
-            log_success "文档文件复制完成"
+            log_info "📚 文档文件复制完成"
+        fi
+        # 复制.version文件确保版本正确
+        if cp temp_download/.version . 2>/dev/null; then
+            log_success "✅ 版本文件复制完成"
+        fi
+        
+        # 显示下载的版本信息
+        if [[ -f "temp_download/.version" ]]; then
+            local downloaded_version=$(cat temp_download/.version 2>/dev/null || echo "unknown")
+            log_success "🎉 已下载版本: $downloaded_version"
         fi
         
         # 清理临时目录
@@ -379,7 +448,13 @@ download_project_files() {
         done
         
         if $download_success; then
-            log_success "项目文件下载完成"
+            # 检查版本文件
+            if [[ -f ".version" ]]; then
+                local version=$(cat .version 2>/dev/null || echo "unknown")
+                log_success "🎉 项目文件下载完成 - 版本: $version"
+            else
+                log_success "✅ 项目文件下载完成"
+            fi
             return 0
         fi
     fi
@@ -397,6 +472,7 @@ download_project_files() {
         "status.sh"
         "bot_manager.sh"
         "config.ini"
+        ".version"
     )
     
     local download_count=0
@@ -426,16 +502,227 @@ download_project_files() {
     done
     
     if [[ ${#critical_missing[@]} -gt 0 ]]; then
-        log_error "关键文件下载失败: ${critical_missing[*]}"
-        echo -e "${RED}建议手动克隆项目:${NC}"
-        echo "git clone https://github.com/TPE1314/sgr.git"
-        echo "cd sgr"
-        echo "./quick_setup.sh"
-        exit 1
+        log_warning "关键文件下载失败: ${critical_missing[*]}"
+        log_info "尝试创建基础文件..."
+        
+        # 创建基础的database.py文件（如果缺失）
+        if [[ ! -f "database.py" ]]; then
+            log_step "创建基础database.py文件..."
+            cat > database.py << 'EOF'
+import sqlite3
+import datetime
+import json
+from typing import List, Dict, Optional
+
+class DatabaseManager:
+    def __init__(self, db_file: str):
+        self.db_file = db_file
+        self.conn = None
+        self.init_database()
+    
+    def get_connection(self):
+        """获取数据库连接"""
+        if self.conn is None:
+            self.conn = sqlite3.connect(self.db_file)
+        return self.conn
+    
+    def init_database(self):
+        """初始化数据库表"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        # 创建投稿表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                content_type TEXT NOT NULL,
+                content TEXT,
+                media_file_id TEXT,
+                caption TEXT,
+                status TEXT DEFAULT 'pending',
+                submit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                review_time TIMESTAMP,
+                publish_time TIMESTAMP,
+                reviewer_id INTEGER,
+                reject_reason TEXT
+            )
+        ''')
+        
+        # 创建用户表  
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                is_banned BOOLEAN DEFAULT FALSE,
+                submission_count INTEGER DEFAULT 0,
+                last_submission_time TIMESTAMP,
+                registration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 创建管理员表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                permission_level INTEGER DEFAULT 1,
+                added_by INTEGER,
+                added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 创建配置表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+EOF
+            log_success "✅ 基础database.py文件已创建"
+        fi
+        
+        # 创建基础的config_manager.py文件（如果缺失）
+        if [[ ! -f "config_manager.py" ]]; then
+            log_step "创建基础config_manager.py文件..."
+            cat > config_manager.py << 'EOF'
+import configparser
+import os
+import sys
+from typing import List
+
+def fix_import_paths():
+    """修复模块导入路径问题"""
+    current_dir = os.getcwd()
+    project_dirs = [current_dir, '.', os.path.abspath('.')]
+    
+    for path in project_dirs:
+        if path and os.path.exists(path) and path not in sys.path:
+            sys.path.insert(0, path)
+    
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    new_paths = [p for p in project_dirs if p and os.path.exists(p)]
+    os.environ['PYTHONPATH'] = ':'.join(new_paths + [pythonpath]).strip(':')
+
+fix_import_paths()
+
+class ConfigManager:
+    def __init__(self, config_file: str = "config.ini"):
+        self.config_file = config_file
+        self.config = configparser.ConfigParser()
+        self.load_config()
+    
+    def load_config(self):
+        """加载配置文件，优先使用本地配置"""
+        local_config = "config.local.ini"
+        if os.path.exists(local_config):
+            self.config.read(local_config, encoding='utf-8')
+        elif os.path.exists(self.config_file):
+            self.config.read(self.config_file, encoding='utf-8')
+        else:
+            raise FileNotFoundError(f"配置文件 {self.config_file} 和 {local_config} 都不存在")
+    
+    def get(self, section: str, key: str, fallback: str = None) -> str:
+        """获取配置值"""
+        return self.config.get(section, key, fallback=fallback)
+    
+    def get_db_file(self) -> str:
+        """获取数据库文件路径"""
+        return self.get('database', 'db_file', 'telegram_bot.db')
+EOF
+            log_success "✅ 基础config_manager.py文件已创建"
+        fi
+        
+        # 重新检查关键文件
+        local still_missing=()
+        for file in "${core_files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                still_missing+=("$file")
+            fi
+        done
+        
+        if [[ ${#still_missing[@]} -gt 0 ]]; then
+            log_error "仍然缺少关键文件: ${still_missing[*]}"
+            echo -e "${RED}建议手动克隆项目:${NC}"
+            echo "git clone https://github.com/TPE1314/sgr.git"
+            echo "cd sgr"
+            echo "./quick_setup.sh"
+            exit 1
+        else
+            log_success "✅ 基础文件创建完成，可以继续安装"
+        fi
     fi
     
-    log_success "已下载 $download_count 个文件"
-    log_success "项目文件下载完成"
+    log_success "✅ 已下载 $download_count 个文件"
+    
+    # 显示下载的版本信息
+    if [[ -f ".version" ]]; then
+        local downloaded_version=$(cat .version 2>/dev/null || echo "unknown")
+        log_success "🎉 v2.3.0项目文件下载完成 - 版本: $downloaded_version"
+    else
+        log_success "✅ 项目文件下载完成"
+        log_warning "⚠️ 未找到版本文件，可能不是最新版本"
+    fi
+}
+
+# 验证下载版本
+verify_downloaded_version() {
+    log_header "🔍 验证版本信息"
+    
+    local expected_version="v2.3.0"
+    local current_version="unknown"
+    
+    # 检查.version文件
+    if [[ -f ".version" ]]; then
+        current_version=$(cat .version 2>/dev/null || echo "unknown")
+        log_info "当前版本: $current_version"
+        log_info "期望版本: $expected_version"
+        
+        if [[ "$current_version" == "$expected_version" ]]; then
+            log_success "✅ 版本验证通过 - 已获取最新版本"
+            return 0
+        else
+            log_warning "⚠️ 版本不匹配"
+        fi
+    else
+        log_warning "⚠️ 未找到版本文件"
+    fi
+    
+    # 检查关键文件的时间戳，判断是否为最新
+    log_step "检查文件更新状态..."
+    
+    local recent_files=0
+    local total_files=0
+    local cutoff_time=$(($(date +%s) - 86400))  # 24小时前
+    
+    for file in *.py *.sh; do
+        if [[ -f "$file" ]]; then
+            ((total_files++))
+            local file_time=$(stat -c %Y "$file" 2>/dev/null || echo 0)
+            if [[ $file_time -gt $cutoff_time ]]; then
+                ((recent_files++))
+            fi
+        fi
+    done
+    
+    if [[ $recent_files -gt 0 ]]; then
+        log_success "✅ 发现 $recent_files/$total_files 个最近更新的文件"
+    else
+        log_warning "⚠️ 文件可能不是最新版本"
+        echo
+        echo -e "${YELLOW}💡 如果安装过程中遇到问题，建议：${NC}"
+        echo "1️⃣ 重新下载最新版本"
+        echo "2️⃣ 检查网络连接"
+        echo "3️⃣ 手动克隆仓库"
+    fi
 }
 
 # 网络诊断函数
@@ -1986,10 +2273,110 @@ def import_database():
         spec.loader.exec_module(module)
         return module.DatabaseManager
 
+def create_database_file():
+    """确保database.py文件存在，如果不存在则创建"""
+    if not os.path.exists('database.py'):
+        print("[WARNING] database.py文件不存在，正在创建...")
+        
+        # 创建基础的database.py文件
+        database_content = '''import sqlite3
+import datetime
+import json
+from typing import List, Dict, Optional
+
+class DatabaseManager:
+    def __init__(self, db_file: str):
+        self.db_file = db_file
+        self.conn = None
+        self.init_database()
+    
+    def get_connection(self):
+        """获取数据库连接"""
+        if self.conn is None:
+            self.conn = sqlite3.connect(self.db_file)
+        return self.conn
+    
+    def init_database(self):
+        """初始化数据库表"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        # 创建投稿表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                content_type TEXT NOT NULL,
+                content TEXT,
+                media_file_id TEXT,
+                caption TEXT,
+                status TEXT DEFAULT 'pending',
+                submit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                review_time TIMESTAMP,
+                publish_time TIMESTAMP,
+                reviewer_id INTEGER,
+                reject_reason TEXT
+            )
+        \\\'\\\'\\\')
+        
+        # 创建用户表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                is_banned BOOLEAN DEFAULT FALSE,
+                submission_count INTEGER DEFAULT 0,
+                last_submission_time TIMESTAMP,
+                registration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \\\'\\\'\\\')
+        
+        # 创建管理员表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                permission_level INTEGER DEFAULT 1,
+                added_by INTEGER,
+                added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \\\'\\\'\\\')
+        
+        # 创建配置表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \\\'\\\'\\\')
+        
+        conn.commit()
+        conn.close()
+        print("数据库表初始化完成")
+'''
+        
+        with open('database.py', 'w', encoding='utf-8') as f:
+            f.write(database_content)
+        
+        print("[SUCCESS] database.py文件已创建")
+        return True
+    else:
+        print("[SUCCESS] database.py文件已存在")
+        return True
+
 def main():
     print("[INFO] v2.3.0 终极数据库初始化启动...")
     
     try:
+        # 0. 确保database.py文件存在
+        if not create_database_file():
+            print("[ERROR] database.py文件创建失败")
+            return False
+        
         # 1. 环境配置
         setup_environment()
         print("[SUCCESS] Python环境配置完成")
@@ -2792,13 +3179,13 @@ main() {
     cat << 'EOF'
     ╔══════════════════════════════════════════════════════════════╗
     ║                                                              ║
-    ║    🤖 电报机器人投稿系统 - 一键安装脚本 v2.2.1               ║
+    ║    🤖 电报机器人投稿系统 - 一键安装脚本 v2.3.0               ║
     ║                                                              ║
-    ║    ✨ v2.2 新增特性:                                         ║
-    ║    • 🛡️  数据库问题终极修复  • 🔄 三层保护机制               ║
+    ║    ✨ v2.3.0 新增特性:                                       ║
+    ║    • 🛡️  数据库问题终极修复  • 🤖 机器人代码自动修复         ║
+    ║    • 📊 版本管理优化        • 🔄 智能预修复机制              ║
     ║    • 🚀 自动后台运行        • ⚙️  systemd 服务集成          ║
-    ║    • 🧪 智能环境诊断        • 📊 实时状态监控                ║
-    ║    • 🔧 紧急修复工具        • 💡 智能故障排除                ║
+    ║    • 🧪 智能环境诊断        • 💡 智能故障排除                ║
     ║                                                              ║
     ║    🎯 核心功能:                                               ║
     ║    • 📝 智能投稿管理      • 📢 广告系统                      ║
@@ -2839,6 +3226,7 @@ EOF
     check_root
     detect_system
     download_project_files          # 新增：下载项目文件
+    verify_downloaded_version       # 新增：验证下载版本
     pre_check_database_environment  # 新增：数据库环境预检测
     install_system_deps
     check_python
