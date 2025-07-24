@@ -15,8 +15,31 @@ cd sgr
 chmod +x quick_setup.sh
 ./quick_setup.sh
 ```
+> 安装完成后选择 **"1) 立即启动并在后台运行"** 系统即自动运行！
 
-### 🚀 启动系统
+## 🎛️ 系统管理
+
+### 统一管理工具 (推荐)
+```bash
+# 🚀 基本操作
+./bot_manager.sh start      # 启动所有机器人
+./bot_manager.sh stop       # 停止所有机器人
+./bot_manager.sh restart    # 重启所有机器人
+./bot_manager.sh status     # 查看系统状态
+
+# 📊 监控和日志
+./bot_manager.sh monitor    # 实时监控 (3秒刷新)
+./bot_manager.sh logs       # 查看最近日志
+./bot_manager.sh logs -f    # 实时查看日志
+
+# 🔧 维护操作
+./bot_manager.sh backup     # 备份配置和数据
+./bot_manager.sh restore    # 恢复配置
+./bot_manager.sh update     # 更新系统
+./bot_manager.sh help       # 查看完整帮助
+```
+
+### 传统管理方式
 ```bash
 # 启动所有机器人
 ./start_all.sh
@@ -24,8 +47,11 @@ chmod +x quick_setup.sh
 # 检查运行状态  
 ./status.sh
 
+# 停止所有机器人
+./stop_all.sh
+
 # 查看日志
-tail -f *.log
+tail -f logs/*.log
 ```
 
 ## 基本使用

@@ -108,6 +108,64 @@ chmod +x quick_setup.sh && ./quick_setup.sh
 - ✅ Python环境配置
 - ✅ 交互式配置向导
 - ✅ 系统功能验证
+- ✅ **自动启动机器人** (可选择后台运行)
+
+## 🎛️ 系统管理
+
+### 📊 统一管理工具
+安装完成后，使用 `bot_manager.sh` 进行全面的系统管理：
+
+```bash
+# 🚀 基本操作
+./bot_manager.sh start      # 启动所有机器人
+./bot_manager.sh stop       # 停止所有机器人
+./bot_manager.sh restart    # 重启所有机器人
+./bot_manager.sh status     # 查看系统状态
+
+# 📊 监控和日志
+./bot_manager.sh monitor    # 实时监控状态 (3秒刷新)
+./bot_manager.sh logs       # 查看最近日志
+./bot_manager.sh logs -f    # 实时查看日志
+
+# 🔧 系统维护
+./bot_manager.sh backup     # 备份配置和数据
+./bot_manager.sh restore    # 恢复配置
+./bot_manager.sh update     # 更新系统
+./bot_manager.sh install    # 重新运行安装脚本
+./bot_manager.sh help       # 查看帮助信息
+```
+
+### 🚀 启动选项
+安装完成后提供4种启动方式：
+
+1. **立即启动并在后台运行** (推荐) - 最常用的生产环境选项
+2. **立即启动并查看实时状态** - 适合测试和调试
+3. **稍后手动启动** - 先完成其他配置
+4. **设置开机自启动** - 自动配置systemd服务
+
+### 📱 传统管理方式
+```bash
+# 启动系统
+./start_all.sh
+
+# 查看状态
+./status.sh
+
+# 停止系统  
+./stop_all.sh
+```
+
+### 🔄 开机自启动
+```bash
+# 配置systemd服务 (一键安装时选择选项4)
+sudo systemctl enable telegram-bot-system
+
+# 手动管理服务
+sudo systemctl start telegram-bot-system    # 启动服务
+sudo systemctl stop telegram-bot-system     # 停止服务
+sudo systemctl status telegram-bot-system   # 查看状态
+sudo systemctl restart telegram-bot-system  # 重启服务
+```
 
 ### 📋 准备工作
 
