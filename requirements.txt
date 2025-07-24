@@ -1,8 +1,2 @@
 python-telegram-bot==20.7
-sqlite3
-asyncio
-logging
-datetime
-json
-os
-configparser
+psutil==5.9.0
