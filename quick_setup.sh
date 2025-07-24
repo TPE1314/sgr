@@ -2,7 +2,7 @@
 
 # 🤖 电报机器人投稿系统 - 一键安装脚本
 # One-Click Installation Script for Telegram Bot Submission System
-# 版本: v2.2.1 (终极增强版，修复文件下载问题)
+# 版本: v2.3.0 (数据库问题彻底解决版)
 # 
 # 功能特性:
 # - 智能系统检测和环境配置
@@ -20,7 +20,7 @@
 set -e
 
 # 脚本版本和信息
-SCRIPT_VERSION="2.2.1"
+SCRIPT_VERSION="2.3.0"
 SCRIPT_NAME="Telegram Bot System Installer"
 MIN_PYTHON_VERSION="3.8"
 REQUIRED_MEMORY_MB=512
