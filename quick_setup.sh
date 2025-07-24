@@ -1598,52 +1598,80 @@ print('ID格式验证通过')
 init_database() {
     log_header "🗄️ 初始化数据库"
     
+    # 激活虚拟环境
     source venv/bin/activate
+    
+    # 检查必需的Python文件
+    log_step "检查Python模块文件..."
+    
+    local required_files=("database.py" "config_manager.py")
+    local missing_files=()
+    
+    for file in "${required_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            missing_files+=("$file")
+        fi
+    done
+    
+    if [[ ${#missing_files[@]} -gt 0 ]]; then
+        log_error "缺少必需的Python文件: ${missing_files[*]}"
+        log_error "请确保所有Python文件都已正确下载"
+        exit 1
+    fi
     
     log_info "初始化数据库表..."
     
-    # 运行数据库初始化
-    python3 -c "
-from database import DatabaseManager
-from advertisement_manager import initialize_ad_manager
-from performance_optimizer import initialize_optimizer
-from i18n_manager import initialize_locale_manager
-from real_time_notification import initialize_notification_manager
-
-# 初始化数据库
-db = DatabaseManager('telegram_bot.db')
-print('数据库初始化完成')
-
-# 初始化各个模块
-try:
-    initialize_ad_manager('telegram_bot.db')
-    print('广告管理模块初始化完成')
-except Exception as e:
-    print(f'广告管理模块初始化失败: {e}')
-
-try:
-    initialize_optimizer('telegram_bot.db')
-    print('性能优化模块初始化完成')
-except Exception as e:
-    print(f'性能优化模块初始化失败: {e}')
+    # 预检查数据库环境
+    log_step "检查数据库环境..."
+    if python3 test_database_init.py >/dev/null 2>&1; then
+        log_success "数据库环境检查通过"
+    else
+        log_warning "数据库环境检查发现问题，但继续初始化..."
+    fi
+    
+    # 使用独立的数据库初始化脚本
+    if python3 init_database.py; then
+        log_success "数据库初始化成功"
+    else
+        log_warning "数据库初始化过程中出现问题，尝试基础初始化..."
+        
+        # 尝试最基础的数据库初始化
+        if python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
 
 try:
-    initialize_locale_manager()
-    print('多语言模块初始化完成')
+    from database import DatabaseManager
+    print('[INFO] 正在初始化基础数据库...')
+    db = DatabaseManager('telegram_bot.db')
+    print('[SUCCESS] 基础数据库初始化完成')
+    
+    # 创建必要的目录
+    import os
+    for directory in ['logs', 'backups', 'temp']:
+        os.makedirs(directory, exist_ok=True)
+    print('[SUCCESS] 必要目录创建完成')
+    
+except ImportError as e:
+    print(f'[ERROR] 数据库模块导入失败: {e}')
+    print('[INFO] 请检查database.py文件是否存在')
+    exit(1)
 except Exception as e:
-    print(f'多语言模块初始化失败: {e}')
-
-try:
-    # 读取配置获取Token
-    import configparser
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-    token = config.get('telegram', 'admin_bot_token')
-    initialize_notification_manager(token)
-    print('实时通知模块初始化完成')
-except Exception as e:
-    print(f'实时通知模块初始化失败: {e}')
-"
+    print(f'[ERROR] 基础数据库初始化失败: {e}')
+    exit(1)
+"; then
+            log_success "基础数据库初始化成功"
+        else
+            log_error "数据库初始化完全失败"
+            echo -e "${RED}可能的原因:${NC}"
+            echo "1. database.py文件缺失"
+            echo "2. Python环境问题"  
+            echo "3. 权限问题"
+            echo "4. 磁盘空间不足"
+            exit 1
+        fi
+    fi
     
     log_success "数据库初始化完成"
 }
