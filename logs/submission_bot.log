@@ -1,0 +1,8 @@
+nohup: ignoring input
+2025-07-24 22:35:25,942 - __main__ - INFO - 投稿机器人启动中...
+2025-07-24 22:35:26,211 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getMe "HTTP/1.1 200 OK"
+2025-07-24 22:35:26,298 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-24 22:35:26,299 - telegram.ext.Application - INFO - Application started
+2025-07-24 22:35:36,561 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:35:46,650 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:35:56,736 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
