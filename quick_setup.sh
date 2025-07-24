@@ -16,7 +16,7 @@
 set -e
 
 # 脚本版本和信息
-SCRIPT_VERSION="2.1.1"
+SCRIPT_VERSION="2.1.2"
 SCRIPT_NAME="Telegram Bot System Installer"
 MIN_PYTHON_VERSION="3.8"
 REQUIRED_MEMORY_MB=512
@@ -1719,11 +1719,24 @@ except Exception as e:
             source venv/bin/activate
         fi
         
-        # 测试并初始化
+        # 测试并初始化 - 使用更强健的方法
         if python3 -c "
 import sys
 import os
-sys.path.insert(0, os.getcwd())
+
+# 多重路径设置
+current_dir = os.getcwd()
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+if '.' not in sys.path:
+    sys.path.insert(0, '.')
+
+# 设置环境变量
+os.environ['PYTHONPATH'] = os.environ.get('PYTHONPATH', '') + ':' + current_dir
+
+# 强制模块重载
+if 'database' in sys.modules:
+    del sys.modules['database']
 
 # 测试导入
 from database import DatabaseManager
@@ -1736,35 +1749,53 @@ for directory in ['logs', 'pids', 'backups', 'temp']:
     os.makedirs(directory, exist_ok=True)
 
 print('内置修复成功')
-" >/dev/null 2>&1; then
+" 2>/dev/null; then
             log_success "内置修复成功"
         else
             log_warning "内置修复失败，使用最基础的初始化..."
             
-            # 尝试最基础的数据库初始化
-        if python3 -c "
+            # 尝试最基础的数据库初始化 - 超强健版本
+            if python3 -c "
 import sys
 import os
-sys.path.insert(0, os.getcwd())
+
+# 超级强健的路径设置
+current_dir = os.getcwd()
+abs_current = os.path.abspath('.')
+paths_to_add = [current_dir, '.', abs_current]
+for path in paths_to_add:
+    if path and path not in sys.path:
+        sys.path.insert(0, path)
+
+# 设置环境变量
+os.environ['PYTHONPATH'] = ':'.join([os.environ.get('PYTHONPATH', ''), current_dir, '.'])
+
+# 清除模块缓存
+for module in list(sys.modules.keys()):
+    if module.startswith('database'):
+        del sys.modules[module]
 
 try:
+    # 尝试导入
     from database import DatabaseManager
     print('[INFO] 正在初始化基础数据库...')
     db = DatabaseManager('telegram_bot.db')
     print('[SUCCESS] 基础数据库初始化完成')
     
     # 创建必要的目录
-    import os
-    for directory in ['logs', 'backups', 'temp']:
+    for directory in ['logs', 'pids', 'backups', 'temp']:
         os.makedirs(directory, exist_ok=True)
     print('[SUCCESS] 必要目录创建完成')
     
 except ImportError as e:
     print(f'[ERROR] 数据库模块导入失败: {e}')
+    print('[DEBUG] Python路径:', sys.path[:5])  # 只显示前5个路径
+    print('[DEBUG] 当前目录文件:', [f for f in os.listdir('.') if f.endswith('.py')][:5])
     print('[INFO] 请检查database.py文件是否存在')
     exit(1)
 except Exception as e:
     print(f'[ERROR] 基础数据库初始化失败: {e}')
+    print('[DEBUG] 错误详情:', str(e))
     exit(1)
 "; then
                 log_success "基础数据库初始化成功"
