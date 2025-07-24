@@ -9,11 +9,17 @@ class ConfigManager:
         self.load_config()
     
     def load_config(self):
-        """加载配置文件"""
-        if not os.path.exists(self.config_file):
-            raise FileNotFoundError(f"配置文件 {self.config_file} 不存在")
-        
-        self.config.read(self.config_file, encoding='utf-8')
+        """加载配置文件，优先使用本地配置"""
+        # 优先使用本地配置文件（包含真实Token）
+        local_config = "config.local.ini"
+        if os.path.exists(local_config):
+            self.config.read(local_config, encoding='utf-8')
+            print(f"✅ 已加载本地配置文件: {local_config}")
+        elif os.path.exists(self.config_file):
+            self.config.read(self.config_file, encoding='utf-8')
+            print(f"✅ 已加载配置文件: {self.config_file}")
+        else:
+            raise FileNotFoundError(f"配置文件 {self.config_file} 和 {local_config} 都不存在")
     
     def get_submission_bot_token(self) -> str:
         """获取投稿机器人token"""

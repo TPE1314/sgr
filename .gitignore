@@ -1,0 +1,43 @@
+# 敏感配置文件 - 包含真实Token
+config.local.ini
+
+# Python相关
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# 数据库文件
+*.db
+*.sqlite3
+
+# 日志文件
+*.log
+logs/
+
+# PID文件
+pids/
+*.pid
+
+# 备份文件
+backups/
+
+# 临时文件
+temp/
+*.tmp
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
