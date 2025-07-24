@@ -3,15 +3,22 @@
 
 echo "🛑 开始停止所有机器人..."
 
-# 停止函数
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# 停止函数（更新PID文件路径）
 stop_bot() {
     local bot_name=$1
-    local pid_file="${bot_name}.pid"
+    local pid_file="pids/${bot_name}.pid"
     
     if [ -f "$pid_file" ]; then
         local pid=$(cat "$pid_file")
         if ps -p $pid > /dev/null 2>&1; then
-            echo "🔄 停止 $bot_name (PID: $pid)..."
+            echo -e "${BLUE}🔄 停止 $bot_name (PID: $pid)...${NC}"
             kill $pid
             
             # 等待进程结束
@@ -23,17 +30,17 @@ stop_bot() {
             
             # 如果还没结束，强制停止
             if ps -p $pid > /dev/null 2>&1; then
-                echo "⚠️ 强制停止 $bot_name..."
+                echo -e "${YELLOW}⚠️ 强制停止 $bot_name...${NC}"
                 kill -9 $pid
             fi
             
-            echo "✅ $bot_name 已停止"
+            echo -e "${GREEN}✅ $bot_name 已停止${NC}"
         else
-            echo "⚠️ $bot_name 进程不存在 (PID: $pid)"
+            echo -e "${YELLOW}⚠️ $bot_name 进程不存在 (PID: $pid)${NC}"
         fi
         rm -f "$pid_file"
     else
-        echo "⚠️ 找不到 $bot_name 的PID文件"
+        echo -e "${YELLOW}⚠️ 找不到 $bot_name 的PID文件${NC}"
     fi
 }
 
@@ -76,7 +83,17 @@ echo ""
 echo "✅ 所有机器人已停止！"
 
 # 清理临时文件
-echo "🧹 清理临时文件..."
-rm -f *.pid *.out
+echo -e "${BLUE}🧹 清理临时文件...${NC}"
+rm -f *.pid *.out pids/*.pid
 
-echo "🎯 停止完成！"
+echo -e "${GREEN}🎯 停止完成！${NC}"
+
+# 显示最终状态
+echo
+echo -e "${BLUE}📊 最终状态检查：${NC}"
+if pgrep -f "submission_bot.py\|publish_bot.py\|control_bot.py" > /dev/null; then
+    echo -e "${YELLOW}⚠️ 仍有机器人进程在运行${NC}"
+    pgrep -f "submission_bot.py\|publish_bot.py\|control_bot.py"
+else
+    echo -e "${GREEN}✅ 所有机器人进程已完全停止${NC}"
+fi

@@ -1676,6 +1676,228 @@ except Exception as e:
     log_success "数据库初始化完成"
 }
 
+# 自动启动机器人系统
+auto_start_bots() {
+    log_header "🚀 启动机器人系统"
+    
+    # 检查启动脚本
+    if [[ ! -f "start_all.sh" ]]; then
+        log_error "start_all.sh 脚本不存在"
+        return 1
+    fi
+    
+    # 检查配置文件
+    if [[ ! -f "config.ini" ]]; then
+        log_error "配置文件不存在，无法启动机器人"
+        return 1
+    fi
+    
+    # 询问启动方式
+    echo -e "${CYAN}🎯 安装完成！选择启动方式：${NC}"
+    echo "1) 立即启动并在后台运行 (推荐)"
+    echo "2) 立即启动并查看实时状态"
+    echo "3) 稍后手动启动"
+    echo "4) 设置开机自启动"
+    
+    local choice
+    read -p "请选择 (1-4): " -n 1 -r choice
+    echo
+    
+    case $choice in
+        1)
+            log_info "正在启动机器人系统..."
+            start_bots_background
+            ;;
+        2)
+            log_info "正在启动机器人系统并显示状态..."
+            start_bots_interactive
+            ;;
+        3)
+            log_info "系统已准备就绪"
+            show_manual_start_info
+            ;;
+        4)
+            log_info "配置开机自启动..."
+            setup_auto_start
+            ;;
+        *)
+            log_info "使用默认选项：后台启动"
+            start_bots_background
+            ;;
+    esac
+}
+
+# 后台启动机器人
+start_bots_background() {
+    log_step "启动机器人到后台..."
+    
+    if ./start_all.sh; then
+        sleep 5  # 等待机器人完全启动
+        
+        # 检查启动状态
+        if ./status.sh | grep -q "运行中"; then
+            log_success "机器人系统启动成功！"
+            
+            echo -e "${GREEN}🎊 系统已在后台运行！${NC}"
+            echo -e "${CYAN}📊 状态信息：${NC}"
+            ./status.sh
+            
+            echo
+            echo -e "${YELLOW}💡 常用命令：${NC}"
+            echo "• 查看状态: ./status.sh"
+            echo "• 停止系统: ./stop_all.sh"
+            echo "• 重启系统: ./stop_all.sh && ./start_all.sh"
+            echo "• 查看日志: tail -f logs/*.log"
+            
+        else
+            log_error "机器人启动失败，请检查配置"
+            show_troubleshooting
+        fi
+    else
+        log_error "启动脚本执行失败"
+        show_troubleshooting
+    fi
+}
+
+# 交互式启动机器人
+start_bots_interactive() {
+    log_step "启动机器人系统..."
+    
+    if ./start_all.sh; then
+        echo
+        log_success "机器人启动完成，正在检查状态..."
+        sleep 3
+        
+        # 显示详细状态
+        ./status.sh
+        
+        echo
+        echo -e "${CYAN}🔄 实时监控模式 (按 Ctrl+C 退出监控，机器人继续运行)${NC}"
+        echo "正在监控机器人状态..."
+        
+        # 实时状态监控
+        while true; do
+            sleep 10
+            clear
+            echo -e "${CYAN}📊 机器人系统实时状态 - $(date)${NC}"
+            echo "================================"
+            ./status.sh
+            echo
+            echo -e "${YELLOW}按 Ctrl+C 退出监控${NC}"
+        done
+    else
+        log_error "启动失败"
+        show_troubleshooting
+    fi
+}
+
+# 显示手动启动信息
+show_manual_start_info() {
+    echo
+    echo -e "${YELLOW}💡 手动启动指南：${NC}"
+    echo "================================"
+    echo "启动系统: ./start_all.sh"
+    echo "查看状态: ./status.sh"
+    echo "停止系统: ./stop_all.sh"
+    echo "查看日志: tail -f logs/*.log"
+    echo
+    echo -e "${CYAN}📋 系统文件：${NC}"
+    echo "• config.ini - 配置文件"
+    echo "• README.md - 详细文档"
+    echo "• USAGE_GUIDE.md - 使用指南"
+}
+
+# 设置开机自启动
+setup_auto_start() {
+    log_step "配置开机自启动..."
+    
+    local service_name="telegram-bot-system"
+    local service_file="/etc/systemd/system/${service_name}.service"
+    local current_dir=$(pwd)
+    
+    # 检查systemd支持
+    if ! command -v systemctl >/dev/null 2>&1; then
+        log_error "当前系统不支持systemd，无法配置开机自启动"
+        return 1
+    fi
+    
+    # 创建systemd服务文件
+    log_info "创建systemd服务..."
+    cat > "/tmp/${service_name}.service" << EOF
+[Unit]
+Description=Telegram Bot System
+After=network.target
+
+[Service]
+Type=forking
+User=$USER
+WorkingDirectory=$current_dir
+ExecStart=$current_dir/start_all.sh
+ExecStop=$current_dir/stop_all.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # 移动服务文件到系统目录
+    if sudo mv "/tmp/${service_name}.service" "$service_file"; then
+        log_success "服务文件创建成功"
+    else
+        log_error "创建服务文件失败，需要管理员权限"
+        return 1
+    fi
+    
+    # 重载systemd并启用服务
+    if sudo systemctl daemon-reload && sudo systemctl enable "$service_name"; then
+        log_success "开机自启动配置成功"
+        
+        # 询问是否立即启动
+        echo
+        read -p "是否立即启动服务? (y/n): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if sudo systemctl start "$service_name"; then
+                log_success "服务启动成功"
+                sleep 3
+                sudo systemctl status "$service_name"
+            else
+                log_error "服务启动失败"
+            fi
+        fi
+        
+        echo
+        echo -e "${YELLOW}💡 systemd 服务管理命令：${NC}"
+        echo "• 启动服务: sudo systemctl start $service_name"
+        echo "• 停止服务: sudo systemctl stop $service_name"
+        echo "• 重启服务: sudo systemctl restart $service_name"
+        echo "• 查看状态: sudo systemctl status $service_name"
+        echo "• 查看日志: sudo journalctl -u $service_name -f"
+        echo "• 禁用自启: sudo systemctl disable $service_name"
+        
+    else
+        log_error "开机自启动配置失败"
+        return 1
+    fi
+}
+
+# 显示故障排除信息
+show_troubleshooting() {
+    echo
+    echo -e "${RED}🔧 故障排除建议：${NC}"
+    echo "================================"
+    echo "1. 检查配置文件: cat config.ini"
+    echo "2. 检查Token有效性: ./quick_setup.sh (重新配置)"
+    echo "3. 查看详细日志: tail -f logs/*.log"
+    echo "4. 检查网络连接: ping api.telegram.org"
+    echo "5. 手动测试: python3 submission_bot.py"
+    echo
+    echo -e "${CYAN}📞 获取帮助：${NC}"
+    echo "• GitHub: https://github.com/TPE1314/sgr/issues"
+    echo "• 文档: README.md"
+}
+
 # 设置文件权限
 setup_permissions() {
     log_header "🔐 设置文件权限"
@@ -2224,24 +2446,8 @@ EOF
     post_install_actions
     show_completion
     
-    # 询问是否立即启动
-    echo
-    echo -e "${CYAN}🎯 安装完成！${NC}"
-    read -p "是否立即启动机器人系统? (y/n): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        log_info "正在启动机器人系统..."
-        if ./start_all.sh; then
-            sleep 3
-            ./status.sh
-            echo
-            echo -e "${GREEN}🎊 系统启动成功！您可以开始使用机器人了！${NC}"
-        else
-            log_warning "系统启动失败，请检查日志文件"
-        fi
-    else
-        log_info "系统已准备就绪，您可以随时使用 ./start_all.sh 启动"
-    fi
+    # 自动启动机器人系统
+    auto_start_bots
     
     echo
     echo -e "${PURPLE}📞 如需帮助，请查看:${NC}"
