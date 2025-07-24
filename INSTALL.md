@@ -58,7 +58,29 @@ chmod +x quick_setup.sh
 - ✅ Python环境配置
 - ✅ 交互式配置向导
 - ✅ 系统功能验证
-- ✅ 自动启动选项
+- ✅ **自动启动机器人** (4种启动选项)
+
+### 🚀 启动选项
+安装完成后会提供以下启动方式：
+
+1. **立即启动并在后台运行** (推荐)
+   - 最适合生产环境
+   - 系统自动在后台运行
+   - 断开SSH连接后继续运行
+
+2. **立即启动并查看实时状态**
+   - 适合测试和调试
+   - 可以看到实时运行状态
+   - 按Ctrl+C退出监控
+
+3. **稍后手动启动**
+   - 先完成其他配置
+   - 使用 `./bot_manager.sh start` 启动
+
+4. **设置开机自启动**
+   - 自动配置systemd服务
+   - 服务器重启后自动启动
+   - 进程监控和自动重启
 
 ### 🔧 手动安装
 
@@ -170,30 +192,58 @@ show_ad_label = true
 
 ## 🚀 启动系统
 
-### 🎯 启动所有机器人
+### 🎛️ 统一管理工具 (推荐)
+使用 `bot_manager.sh` 进行全面的系统管理：
+
 ```bash
+# 🚀 基本操作
+./bot_manager.sh start      # 启动所有机器人
+./bot_manager.sh stop       # 停止所有机器人
+./bot_manager.sh restart    # 重启所有机器人
+./bot_manager.sh status     # 查看系统状态
+
+# 📊 监控和日志
+./bot_manager.sh monitor    # 实时监控状态 (3秒刷新)
+./bot_manager.sh logs       # 查看最近日志
+./bot_manager.sh logs -f    # 实时查看日志
+
+# 🔧 系统维护
+./bot_manager.sh backup     # 备份配置和数据
+./bot_manager.sh restore    # 恢复配置
+./bot_manager.sh update     # 更新系统
+./bot_manager.sh help       # 查看帮助信息
+```
+
+### 📱 传统管理方式
+```bash
+# 启动所有机器人
 ./start_all.sh
-```
 
-### 📊 检查运行状态
-```bash
+# 检查运行状态
 ./status.sh
-```
 
-### 📋 查看日志
-```bash
-# 查看所有日志
-tail -f *.log
+# 查看日志
+tail -f logs/*.log
 
-# 查看特定机器人日志
-tail -f submission_bot.log
-tail -f publish_bot.log
-tail -f control_bot.log
-```
-
-### 🛑 停止系统
-```bash
+# 停止系统
 ./stop_all.sh
+```
+
+### 📊 系统状态示例
+```
+📊 电报机器人状态监控
+==========================
+
+🤖 机器人状态：
+--------------------
+📝 投稿机器人: 运行中 (PID: 12345, 内存: 25.3MB, CPU: 0.2%)
+  📝 日志活跃 (最后更新: 2分钟前)
+
+📢 发布机器人: 运行中 (PID: 12346, 内存: 28.1MB, CPU: 0.1%)
+  📝 日志活跃 (最后更新: 1分钟前)
+
+🎛️ 控制机器人: 运行中 (PID: 12347, 内存: 32.5MB, CPU: 0.3%)
+  📝 日志活跃 (最后更新: 3分钟前)
 ```
 
 ## ✅ 验证安装
