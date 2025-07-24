@@ -749,3 +749,7 @@ telegram.error.BadRequest: Can't parse entities: can't find end of the entity st
 2025-07-24 22:54:06,453 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
 2025-07-24 22:54:16,540 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
 2025-07-24 22:54:26,627 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:54:36,714 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:54:46,800 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:54:56,889 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:55:06,975 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
