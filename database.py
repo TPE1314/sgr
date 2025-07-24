@@ -57,6 +57,42 @@ class DatabaseManager:
             )
         ''')
         
+        # 创建系统配置表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS system_config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_key TEXT UNIQUE NOT NULL,
+                config_value TEXT NOT NULL,
+                updated_by INTEGER,
+                updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        
+        # 创建动态管理员表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS dynamic_admins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE NOT NULL,
+                username TEXT,
+                permissions TEXT DEFAULT 'basic',
+                added_by INTEGER,
+                added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                is_active BOOLEAN DEFAULT TRUE
+            )
+        ''')
+        
+        # 创建机器人状态表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS bot_status (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                bot_name TEXT UNIQUE NOT NULL,
+                status TEXT DEFAULT 'stopped',
+                last_update TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                config_hash TEXT,
+                restart_count INTEGER DEFAULT 0
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -263,3 +299,189 @@ class DatabaseManager:
         
         conn.close()
         return result and result[0] if result else False
+    
+    def add_dynamic_admin(self, user_id: int, username: str, permissions: str, added_by: int) -> bool:
+        """添加动态管理员"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT OR REPLACE INTO dynamic_admins (user_id, username, permissions, added_by)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, username, permissions, added_by))
+            
+            # 记录操作日志
+            cursor.execute('''
+                INSERT INTO admin_logs (admin_id, action, target_id, details)
+                VALUES (?, 'add_admin', ?, ?)
+            ''', (added_by, user_id, f"添加管理员，权限: {permissions}"))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def remove_dynamic_admin(self, user_id: int, removed_by: int) -> bool:
+        """移除动态管理员"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                UPDATE dynamic_admins SET is_active = FALSE WHERE user_id = ?
+            ''', (user_id,))
+            
+            # 记录操作日志
+            cursor.execute('''
+                INSERT INTO admin_logs (admin_id, action, target_id, details)
+                VALUES (?, 'remove_admin', ?, ?)
+            ''', (removed_by, user_id, "移除管理员权限"))
+            
+            conn.commit()
+            return cursor.rowcount > 0
+        except Exception as e:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def get_dynamic_admins(self) -> List[Dict]:
+        """获取所有动态管理员"""
+        conn = sqlite3.connect(self.db_file)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM dynamic_admins 
+            WHERE is_active = TRUE 
+            ORDER BY added_time DESC
+        ''')
+        
+        admins = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return admins
+    
+    def is_dynamic_admin(self, user_id: int) -> bool:
+        """检查用户是否为动态管理员"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT permissions FROM dynamic_admins 
+            WHERE user_id = ? AND is_active = TRUE
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        return result is not None
+    
+    def get_admin_permissions(self, user_id: int) -> str:
+        """获取管理员权限级别"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT permissions FROM dynamic_admins 
+            WHERE user_id = ? AND is_active = TRUE
+        ''', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else None
+    
+    def set_config(self, key: str, value: str, updated_by: int) -> bool:
+        """设置系统配置"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                INSERT OR REPLACE INTO system_config (config_key, config_value, updated_by)
+                VALUES (?, ?, ?)
+            ''', (key, value, updated_by))
+            
+            # 记录操作日志
+            cursor.execute('''
+                INSERT INTO admin_logs (admin_id, action, details)
+                VALUES (?, 'update_config', ?)
+            ''', (updated_by, f"更新配置: {key} = {value}"))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def get_config(self, key: str) -> Optional[str]:
+        """获取系统配置"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT config_value FROM system_config WHERE config_key = ?', (key,))
+        result = cursor.fetchone()
+        
+        conn.close()
+        return result[0] if result else None
+    
+    def update_bot_status(self, bot_name: str, status: str, config_hash: str = None) -> bool:
+        """更新机器人状态"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            if config_hash:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO bot_status (bot_name, status, config_hash, last_update)
+                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (bot_name, status, config_hash))
+            else:
+                cursor.execute('''
+                    INSERT OR REPLACE INTO bot_status (bot_name, status, last_update)
+                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                ''', (bot_name, status))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+    
+    def get_bot_status(self, bot_name: str) -> Optional[Dict]:
+        """获取机器人状态"""
+        conn = sqlite3.connect(self.db_file)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM bot_status WHERE bot_name = ?', (bot_name,))
+        result = cursor.fetchone()
+        
+        conn.close()
+        return dict(result) if result else None
+    
+    def increment_restart_count(self, bot_name: str) -> bool:
+        """增加重启计数"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('''
+                UPDATE bot_status 
+                SET restart_count = restart_count + 1, last_update = CURRENT_TIMESTAMP
+                WHERE bot_name = ?
+            ''', (bot_name,))
+            
+            conn.commit()
+            return True
+        except Exception as e:
+            conn.rollback()
+            return False
+        finally:
+            conn.close()

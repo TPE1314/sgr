@@ -57,5 +57,32 @@ class ConfigManager:
         return self.config.getint('settings', 'auto_publish_delay')
     
     def is_admin(self, user_id: int) -> bool:
-        """检查用户是否为管理员"""
+        """检查用户是否为管理员（包括动态管理员）"""
+        # 检查配置文件中的管理员
+        if user_id in self.get_admin_users():
+            return True
+        
+        # 检查动态管理员
+        try:
+            from database import DatabaseManager
+            db = DatabaseManager(self.get_db_file())
+            return db.is_dynamic_admin(user_id)
+        except:
+            return False
+    
+    def is_super_admin(self, user_id: int) -> bool:
+        """检查用户是否为超级管理员（配置文件中的管理员）"""
         return user_id in self.get_admin_users()
+    
+    def get_admin_level(self, user_id: int) -> str:
+        """获取管理员级别"""
+        if self.is_super_admin(user_id):
+            return "super"
+        elif self.is_admin(user_id):
+            try:
+                from database import DatabaseManager
+                db = DatabaseManager(self.get_db_file())
+                return db.get_admin_permissions(user_id) or "basic"
+            except:
+                return "basic"
+        return "none"

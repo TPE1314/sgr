@@ -325,6 +325,207 @@ class SubmissionBot:
         
         logger.info(f"用户 {user.id} ({user.username}) 提交了{content_type}投稿 #{submission_id}")
     
+    async def handle_video_note_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理视频消息投稿（圆形视频）"""
+        user = update.effective_user
+        
+        if self.db.is_user_banned(user.id):
+            await update.message.reply_text("❌ 您已被封禁，无法投稿。")
+            return
+        
+        video_note = update.message.video_note
+        
+        submission_id = self.db.add_submission(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            content_type='video_note',
+            media_file_id=video_note.file_id
+        )
+        
+        success_text = f"""
+✅ **投稿提交成功！**
+
+📄 投稿ID：{submission_id}
+🎬 类型：视频消息
+⏳ 状态：待审核
+
+您的投稿已进入审核队列，请耐心等待管理员审核。
+        """
+        
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        logger.info(f"用户 {user.id} ({user.username}) 提交了视频消息投稿 #{submission_id}")
+    
+    async def handle_voice_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理语音投稿"""
+        user = update.effective_user
+        
+        if self.db.is_user_banned(user.id):
+            await update.message.reply_text("❌ 您已被封禁，无法投稿。")
+            return
+        
+        voice = update.message.voice
+        
+        submission_id = self.db.add_submission(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            content_type='voice',
+            media_file_id=voice.file_id
+        )
+        
+        success_text = f"""
+✅ **投稿提交成功！**
+
+📄 投稿ID：{submission_id}
+🎤 类型：语音
+⏳ 状态：待审核
+
+您的投稿已进入审核队列，请耐心等待管理员审核。
+        """
+        
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        logger.info(f"用户 {user.id} ({user.username}) 提交了语音投稿 #{submission_id}")
+    
+    async def handle_sticker_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理贴纸投稿"""
+        user = update.effective_user
+        
+        if self.db.is_user_banned(user.id):
+            await update.message.reply_text("❌ 您已被封禁，无法投稿。")
+            return
+        
+        sticker = update.message.sticker
+        
+        submission_id = self.db.add_submission(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            content_type='sticker',
+            media_file_id=sticker.file_id
+        )
+        
+        success_text = f"""
+✅ **投稿提交成功！**
+
+📄 投稿ID：{submission_id}
+😀 类型：贴纸
+⏳ 状态：待审核
+
+您的投稿已进入审核队列，请耐心等待管理员审核。
+        """
+        
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        logger.info(f"用户 {user.id} ({user.username}) 提交了贴纸投稿 #{submission_id}")
+    
+    async def handle_animation_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理动图投稿（GIF）"""
+        user = update.effective_user
+        
+        if self.db.is_user_banned(user.id):
+            await update.message.reply_text("❌ 您已被封禁，无法投稿。")
+            return
+        
+        animation = update.message.animation
+        caption = update.message.caption or ""
+        
+        submission_id = self.db.add_submission(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            content_type='animation',
+            media_file_id=animation.file_id,
+            caption=caption
+        )
+        
+        success_text = f"""
+✅ **投稿提交成功！**
+
+📄 投稿ID：{submission_id}
+🎭 类型：动图
+📝 说明：{caption[:50] + "..." if len(caption) > 50 else caption}
+⏳ 状态：待审核
+
+您的投稿已进入审核队列，请耐心等待管理员审核。
+        """
+        
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        logger.info(f"用户 {user.id} ({user.username}) 提交了动图投稿 #{submission_id}")
+    
+    async def handle_location_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理位置投稿"""
+        user = update.effective_user
+        
+        if self.db.is_user_banned(user.id):
+            await update.message.reply_text("❌ 您已被封禁，无法投稿。")
+            return
+        
+        location = update.message.location
+        location_text = f"纬度: {location.latitude}, 经度: {location.longitude}"
+        if location.live_period:
+            location_text += f", 实时位置: {location.live_period}秒"
+        
+        submission_id = self.db.add_submission(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            content_type='location',
+            content=location_text
+        )
+        
+        success_text = f"""
+✅ **投稿提交成功！**
+
+📄 投稿ID：{submission_id}
+📍 类型：位置信息
+📝 位置：{location_text}
+⏳ 状态：待审核
+
+您的投稿已进入审核队列，请耐心等待管理员审核。
+        """
+        
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        logger.info(f"用户 {user.id} ({user.username}) 提交了位置投稿 #{submission_id}")
+    
+    async def handle_contact_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理联系人投稿"""
+        user = update.effective_user
+        
+        if self.db.is_user_banned(user.id):
+            await update.message.reply_text("❌ 您已被封禁，无法投稿。")
+            return
+        
+        contact = update.message.contact
+        contact_text = f"姓名: {contact.first_name}"
+        if contact.last_name:
+            contact_text += f" {contact.last_name}"
+        if contact.phone_number:
+            contact_text += f", 电话: {contact.phone_number}"
+        if contact.user_id:
+            contact_text += f", 用户ID: {contact.user_id}"
+        
+        submission_id = self.db.add_submission(
+            user_id=user.id,
+            username=user.username or user.first_name,
+            content_type='contact',
+            content=contact_text
+        )
+        
+        success_text = f"""
+✅ **投稿提交成功！**
+
+📄 投稿ID：{submission_id}
+👤 类型：联系人
+📝 信息：{contact_text}
+⏳ 状态：待审核
+
+您的投稿已进入审核队列，请耐心等待管理员审核。
+        """
+        
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
+        await self.notification_service.send_submission_to_review_group(submission_id)
+        logger.info(f"用户 {user.id} ({user.username}) 提交了联系人投稿 #{submission_id}")
+    
     def run(self):
         """启动机器人"""
         # 创建应用
@@ -336,11 +537,18 @@ class SubmissionBot:
         self.app.add_handler(CommandHandler("help", self.help_command))
         
         # 消息处理器
+        # 消息处理器
         self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_submission))
         self.app.add_handler(MessageHandler(filters.PHOTO, self.handle_photo_submission))
         self.app.add_handler(MessageHandler(filters.VIDEO, self.handle_video_submission))
+        self.app.add_handler(MessageHandler(filters.VIDEO_NOTE, self.handle_video_note_submission))
         self.app.add_handler(MessageHandler(filters.DOCUMENT, self.handle_document_submission))
-        self.app.add_handler(MessageHandler(filters.AUDIO | filters.VOICE, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler(filters.AUDIO, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler(filters.VOICE, self.handle_voice_submission))
+        self.app.add_handler(MessageHandler(filters.STICKER, self.handle_sticker_submission))
+        self.app.add_handler(MessageHandler(filters.ANIMATION, self.handle_animation_submission))
+        self.app.add_handler(MessageHandler(filters.LOCATION, self.handle_location_submission))
+        self.app.add_handler(MessageHandler(filters.CONTACT, self.handle_contact_submission))
         
         logger.info("投稿机器人启动中...")
         
