@@ -1626,7 +1626,28 @@ init_database() {
     if python3 test_database_init.py >/dev/null 2>&1; then
         log_success "数据库环境检查通过"
     else
-        log_warning "数据库环境检查发现问题，但继续初始化..."
+        log_warning "数据库环境检查发现问题，尝试修复..."
+        
+        # 运行诊断工具
+        if python3 fix_database_issue.py 2>/dev/null | grep -q "所有检查通过"; then
+            log_success "数据库问题已修复"
+        else
+            log_error "数据库环境存在问题，请运行诊断工具："
+            echo "  python3 fix_database_issue.py"
+            echo "  # 或者"
+            echo "  export PYTHONPATH=\$PYTHONPATH:\$(pwd)"
+            echo
+            echo "如果问题持续，请确保："
+            echo "1. 在正确的项目目录中运行"
+            echo "2. 所有Python文件完整下载"
+            echo "3. 虚拟环境正确激活（如果使用）"
+            echo
+            read -p "是否继续安装? (y/n): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        fi
     fi
     
     # 使用独立的数据库初始化脚本
