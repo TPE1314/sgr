@@ -23,7 +23,7 @@
 set -e
 
 # 脚本版本和信息
-SCRIPT_VERSION="2.3.0"
+SCRIPT_VERSION="v2.3.0"
 SCRIPT_NAME="Telegram Bot System Installer"
 MIN_PYTHON_VERSION="3.8"
 REQUIRED_MEMORY_MB=512
