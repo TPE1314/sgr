@@ -1,6 +1,12 @@
 # 🤖 电报机器人投稿系统 - 完整版
 
+[![一键安装](https://img.shields.io/badge/一键安装-立即部署-brightgreen?style=for-the-badge&logo=rocket)](https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh)
+[![GitHub Stars](https://img.shields.io/github/stars/TPE1314/sgr?style=for-the-badge&logo=github)](https://github.com/TPE1314/sgr/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/TPE1314/sgr?style=for-the-badge&logo=github)](https://github.com/TPE1314/sgr/issues)
+
 一个功能强大、企业级的Telegram机器人投稿管理系统，集成了**投稿管理**、**广告投放**、**多媒体处理**、**多语言支持**、**实时通知**等高级功能。
+
+> 🚀 **一行命令部署**: `curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash`
 
 ## ✨ 功能特点
 
@@ -77,17 +83,23 @@
 
 ## 🚀 快速开始
 
-> 💡 **推荐使用一键安装脚本，只需3个命令即可完成部署！**
+> 💡 **只需一行命令即可完成部署！**
 
-### 📥 获取项目
+### ⚡ 超快安装 (推荐)
 ```bash
-# 克隆仓库
-git clone https://github.com/TPE1314/sgr.git
-cd sgr
+# 一行命令完成安装 🚀
+curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash
+```
 
-# 运行一键安装
-chmod +x quick_setup.sh
-./quick_setup.sh
+### 📥 其他安装方式
+```bash
+# 方法一：克隆仓库
+git clone https://github.com/TPE1314/sgr.git
+cd sgr && chmod +x quick_setup.sh && ./quick_setup.sh
+
+# 方法二：下载脚本
+wget https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh
+chmod +x quick_setup.sh && ./quick_setup.sh
 ```
 
 一键安装脚本将自动完成：
@@ -139,15 +151,21 @@ chmod +x quick_setup.sh
 ./quick_setup.sh
 ```
 
-#### 方法二: 快速安装
+#### 方法二: 直接下载安装 🌐
 ```bash
-# 直接下载并运行安装脚本
+# 下载安装脚本并运行
 wget https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh
 chmod +x quick_setup.sh
 ./quick_setup.sh
 ```
 
-#### 方法三: 手动安装
+#### 方法三: 一行命令安装 ⚡
+```bash
+# 下载并立即执行 (适合服务器环境)
+curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash
+```
+
+#### 方法四: 手动安装
 ```bash
 # 1. 克隆项目
 git clone https://github.com/TPE1314/sgr.git

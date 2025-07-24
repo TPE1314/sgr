@@ -4,14 +4,22 @@
 
 ### 1. 获取项目
 ```bash
+# 方法一：克隆仓库 (推荐)
 git clone https://github.com/TPE1314/sgr.git
 cd sgr
+
+# 方法二：直接下载脚本
+wget https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh
 ```
 
 ### 2. 一键安装
 ```bash
+# 方法一：运行安装脚本
 chmod +x quick_setup.sh
 ./quick_setup.sh
+
+# 方法二：一行命令安装
+curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash
 ```
 
 ### 3. 启动系统
