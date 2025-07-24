@@ -25,15 +25,18 @@ class UpdateService:
     def get_current_version(self) -> str:
         """获取当前版本信息"""
         try:
+            # 优先使用.version文件
             if os.path.exists('.version'):
                 with open('.version', 'r', encoding='utf-8') as f:
-                    return f.read().strip()
-            else:
-                # 如果没有版本文件，根据文件修改时间生成版本号
-                return datetime.now().strftime("v1.0.%Y%m%d")
+                    version = f.read().strip()
+                    if version:
+                        return version
+            
+            # 如果没有版本文件，使用固定版本号
+            return "v2.3.0"
         except Exception as e:
             logger.error(f"获取版本信息失败: {e}")
-            return "unknown"
+            return "v2.3.0"
     
     def set_version(self, version: str) -> bool:
         """设置版本信息"""

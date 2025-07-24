@@ -1,6 +1,25 @@
 import configparser
 import os
+import sys
 from typing import List
+
+# 修复Python模块导入路径
+def fix_import_paths():
+    """修复模块导入路径问题"""
+    current_dir = os.getcwd()
+    project_dirs = [current_dir, '.', os.path.abspath('.')]
+    
+    for path in project_dirs:
+        if path and os.path.exists(path) and path not in sys.path:
+            sys.path.insert(0, path)
+    
+    # 设置PYTHONPATH
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    new_paths = [p for p in project_dirs if p and os.path.exists(p)]
+    os.environ['PYTHONPATH'] = ':'.join(new_paths + [pythonpath]).strip(':')
+
+# 在模块加载时自动修复路径
+fix_import_paths()
 
 class ConfigManager:
     def __init__(self, config_file: str = "config.ini"):
