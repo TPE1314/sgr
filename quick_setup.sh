@@ -2,7 +2,7 @@
 
 # 🤖 电报机器人投稿系统 - 一键安装脚本
 # One-Click Installation Script for Telegram Bot Submission System
-# 版本: v2.2.0 (终极增强版，包含数据库问题终极修复)
+# 版本: v2.2.1 (终极增强版，修复文件下载问题)
 # 
 # 功能特性:
 # - 智能系统检测和环境配置
@@ -20,7 +20,7 @@
 set -e
 
 # 脚本版本和信息
-SCRIPT_VERSION="2.2.0"
+SCRIPT_VERSION="2.2.1"
 SCRIPT_NAME="Telegram Bot System Installer"
 MIN_PYTHON_VERSION="3.8"
 REQUIRED_MEMORY_MB=512
@@ -307,6 +307,133 @@ detect_system() {
     fi
     
     log_success "系统检测完成"
+}
+
+# 下载项目文件
+download_project_files() {
+    log_header "📥 下载项目文件"
+    
+    # 检查是否已在git仓库中
+    if [[ -d ".git" ]]; then
+        log_success "检测到git仓库，跳过文件下载"
+        
+        # 更新到最新版本
+        log_step "更新项目文件..."
+        if git pull origin main >/dev/null 2>&1; then
+            log_success "项目文件已更新到最新版本"
+        else
+            log_warning "git pull失败，继续使用现有文件"
+        fi
+        return 0
+    fi
+    
+    # 检查关键文件是否已存在
+    local core_files=("database.py" "config_manager.py" "submission_bot.py" "publish_bot.py" "control_bot.py")
+    local missing_files=()
+    
+    for file in "${core_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            missing_files+=("$file")
+        fi
+    done
+    
+    if [[ ${#missing_files[@]} -eq 0 ]]; then
+        log_success "所有核心文件已存在，跳过下载"
+        return 0
+    fi
+    
+    log_info "缺少 ${#missing_files[@]} 个核心文件，开始下载..."
+    
+    # 方法1: 尝试克隆整个仓库
+    log_step "尝试克隆完整项目..."
+    if git clone https://github.com/TPE1314/sgr.git temp_download >/dev/null 2>&1; then
+        log_info "复制文件到当前目录..."
+        
+        # 复制所有Python文件和脚本
+        if cp temp_download/*.py . 2>/dev/null; then
+            log_success "Python文件复制完成"
+        fi
+        if cp temp_download/*.sh . 2>/dev/null; then
+            chmod +x *.sh
+            log_success "脚本文件复制完成"
+        fi
+        if cp temp_download/*.ini . 2>/dev/null; then
+            log_success "配置文件复制完成"
+        fi
+        if cp temp_download/*.md . 2>/dev/null; then
+            log_success "文档文件复制完成"
+        fi
+        
+        # 清理临时目录
+        rm -rf temp_download
+        
+        # 验证核心文件
+        local download_success=true
+        for file in "${core_files[@]}"; do
+            if [[ ! -f "$file" ]]; then
+                log_error "关键文件下载失败: $file"
+                download_success=false
+            fi
+        done
+        
+        if $download_success; then
+            log_success "项目文件下载完成"
+            return 0
+        fi
+    fi
+    
+    # 方法2: 逐个下载核心文件
+    log_step "逐个下载核心文件..."
+    local files_to_download=(
+        "database.py"
+        "config_manager.py" 
+        "submission_bot.py"
+        "publish_bot.py"
+        "control_bot.py"
+        "start_all.sh"
+        "stop_all.sh"
+        "status.sh"
+        "bot_manager.sh"
+        "config.ini"
+    )
+    
+    local download_count=0
+    local base_url="https://raw.githubusercontent.com/TPE1314/sgr/main"
+    
+    for file in "${files_to_download[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            log_info "下载 $file..."
+            if curl -fsSL "$base_url/$file" -o "$file" 2>/dev/null; then
+                if [[ "$file" == *.sh ]]; then
+                    chmod +x "$file"
+                fi
+                ((download_count++))
+                log_success "✓ $file"
+            else
+                log_warning "✗ $file 下载失败"
+            fi
+        fi
+    done
+    
+    # 验证核心文件
+    local critical_missing=()
+    for file in "${core_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            critical_missing+=("$file")
+        fi
+    done
+    
+    if [[ ${#critical_missing[@]} -gt 0 ]]; then
+        log_error "关键文件下载失败: ${critical_missing[*]}"
+        echo -e "${RED}建议手动克隆项目:${NC}"
+        echo "git clone https://github.com/TPE1314/sgr.git"
+        echo "cd sgr"
+        echo "./quick_setup.sh"
+        exit 1
+    fi
+    
+    log_success "已下载 $download_count 个文件"
+    log_success "项目文件下载完成"
 }
 
 # 网络诊断函数
@@ -2672,7 +2799,7 @@ main() {
     cat << 'EOF'
     ╔══════════════════════════════════════════════════════════════╗
     ║                                                              ║
-    ║    🤖 电报机器人投稿系统 - 一键安装脚本 v2.2                 ║
+    ║    🤖 电报机器人投稿系统 - 一键安装脚本 v2.2.1               ║
     ║                                                              ║
     ║    ✨ v2.2 新增特性:                                         ║
     ║    • 🛡️  数据库问题终极修复  • 🔄 三层保护机制               ║
@@ -2718,6 +2845,7 @@ EOF
     # 主要安装步骤
     check_root
     detect_system
+    download_project_files          # 新增：下载项目文件
     pre_check_database_environment  # 新增：数据库环境预检测
     install_system_deps
     check_python
