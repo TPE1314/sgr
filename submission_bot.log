@@ -122,3 +122,16 @@ Traceback (most recent call last):
   File "/workspace/venv/lib/python3.13/site-packages/telegram/_bot.py", line 847, in initialize
     raise InvalidToken(f"The token `{self._token}` was rejected by the server.") from exc
 telegram.error.InvalidToken: The token `YOUR_SUBMISSION_BOT_TOKEN` was rejected by the server.
+2025-07-24 22:33:09,426 - __main__ - INFO - 投稿机器人启动中...
+2025-07-24 22:33:09,697 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getMe "HTTP/1.1 200 OK"
+2025-07-24 22:33:09,785 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-24 22:33:09,785 - telegram.ext.Application - INFO - Application started
+2025-07-24 22:33:19,512 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:33:19,512 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-07-24 22:33:19,512 - telegram.ext.Application - INFO - Application.stop() complete
+2025-07-24 22:33:25,510 - __main__ - INFO - 投稿机器人启动中...
+2025-07-24 22:33:25,760 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getMe "HTTP/1.1 200 OK"
+2025-07-24 22:33:25,841 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-24 22:33:25,841 - telegram.ext.Application - INFO - Application started
+2025-07-24 22:33:36,086 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:33:46,168 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
