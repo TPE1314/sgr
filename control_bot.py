@@ -13,6 +13,7 @@ from telegram.constants import ParseMode
 from config_manager import ConfigManager
 from hot_update_service import HotUpdateService
 from database import DatabaseManager
+from update_service import UpdateService
 
 # 配置日志
 logging.basicConfig(
@@ -30,6 +31,7 @@ class ControlBot:
         self.config = ConfigManager()
         self.db = DatabaseManager(self.config.get_db_file())
         self.hot_update = HotUpdateService()
+        self.update_service = UpdateService()
         self.app = None
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -448,6 +450,30 @@ class ControlBot:
             await self.show_logs(query.message)
         elif data == "system_info":
             await self.show_system_info(query.message)
+        elif data == "hot_reload_all":
+            await self.hot_reload_all_bots(query.message)
+        elif data == "admin_list":
+            await self.show_admin_list(query.message)
+        elif data == "add_admin":
+            await self.prompt_add_admin(query.message)
+        elif data == "system_config":
+            await self.show_system_config(query.message)
+        elif data == "one_click_update":
+            await self.one_click_update(query.message)
+        elif data == "show_backups":
+            await self.show_backup_list(query.message)
+        elif data == "update_status":
+            await self.show_update_status(query.message)
+        elif data.startswith("remove_admin_"):
+            admin_id = int(data.split("_")[2])
+            await self.remove_admin_action(query, admin_id, user_id)
+        elif data.startswith("rollback_"):
+            backup_name = data.replace("rollback_", "")
+            await self.rollback_action(query, backup_name)
+        elif data == "confirm_update":
+            await self.confirm_update_action(query, user_id)
+        elif data == "back_to_main":
+            await self.start_command(query, None)
     
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """帮助命令"""
@@ -494,6 +520,383 @@ class ControlBot:
         from datetime import datetime
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    async def hot_reload_all_bots(self, message):
+        """热重载所有机器人"""
+        await message.reply_text("🔥 开始热重载所有机器人...")
+        
+        results = []
+        for bot_name in self.hot_update.bot_configs.keys():
+            success, msg = await self.hot_update.hot_reload_bot(bot_name)
+            status_emoji = "✅" if success else "❌"
+            results.append(f"{status_emoji} {self.hot_update.bot_configs[bot_name]['name']}: {msg}")
+        
+        result_text = "🔥 **热重载结果**\n\n" + "\n".join(results)
+        await message.reply_text(result_text, parse_mode=ParseMode.MARKDOWN)
+    
+    async def show_admin_list(self, message):
+        """显示管理员列表"""
+        # 获取配置文件中的超级管理员
+        super_admins = self.config.get_admin_users()
+        
+        # 获取动态管理员
+        dynamic_admins = self.db.get_dynamic_admins()
+        
+        admin_text = "👨‍💼 **管理员列表**\n\n"
+        
+        # 超级管理员
+        admin_text += "🔑 **超级管理员 (配置文件):**\n"
+        for admin_id in super_admins:
+            admin_text += f"• ID: {admin_id} (权限: super)\n"
+        
+        # 动态管理员
+        admin_text += f"\n👥 **动态管理员 ({len(dynamic_admins)} 人):**\n"
+        if dynamic_admins:
+            for admin in dynamic_admins:
+                admin_text += f"• @{admin['username'] or 'N/A'} (ID: {admin['user_id']}, 权限: {admin['permissions']})\n"
+                admin_text += f"  添加时间: {admin['added_time']}\n"
+        else:
+            admin_text += "暂无动态管理员\n"
+        
+        # 添加管理按钮
+        keyboard = []
+        if dynamic_admins:
+            keyboard.append([InlineKeyboardButton("🗑️ 管理动态管理员", callback_data="manage_dynamic_admins")])
+        
+        keyboard.extend([
+            [
+                InlineKeyboardButton("➕ 添加管理员", callback_data="add_admin"),
+                InlineKeyboardButton("🔄 刷新列表", callback_data="admin_list")
+            ],
+            [InlineKeyboardButton("🔙 返回主菜单", callback_data="back_to_main")]
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await message.reply_text(admin_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+    
+    async def prompt_add_admin(self, message):
+        """提示添加管理员"""
+        help_text = """
+➕ **添加动态管理员**
+
+请使用以下命令添加管理员：
+`/add_admin <用户ID> <权限级别> [用户名]`
+
+**参数说明：**
+• 用户ID: 必需，数字格式
+• 权限级别: basic 或 advanced
+• 用户名: 可选，便于识别
+
+**示例：**
+`/add_admin 123456789 basic @username`
+`/add_admin 987654321 advanced`
+
+**权限说明：**
+• basic: 基础权限，可以查看状态和日志
+• advanced: 高级权限，可以管理机器人但不能管理其他管理员
+        """
+        
+        await message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
+    
+    async def show_system_config(self, message):
+        """显示系统配置"""
+        try:
+            # 获取更新状态
+            update_status = self.update_service.get_update_status()
+            
+            config_text = f"""
+⚙️ **系统配置信息**
+
+📱 **当前版本:** {update_status.get('current_version', 'unknown')}
+🔄 **最后更新:** {update_status.get('last_update', '从未更新')[:19] if update_status.get('last_update') else '从未更新'}
+
+🗂️ **Git状态:**
+• Git仓库: {'✅' if update_status.get('is_git_repo') else '❌'}
+• 有可用更新: {'✅' if update_status.get('has_updates') else '❌'}
+• 落后提交: {update_status.get('git_behind_count', 0)} 个
+
+📦 **备份信息:**
+• 备份数量: {update_status.get('backup_count', 0)} 个
+• 依赖文件: {'✅' if update_status.get('has_requirements') else '❌'}
+
+🤖 **机器人状态:**
+            """
+            
+            # 获取机器人状态
+            bots_status = self.hot_update.get_all_bots_status()
+            for bot_name, status in bots_status.items():
+                status_emoji = "🟢" if status['running'] else "🔴"
+                config_text += f"• {status['display_name']}: {status_emoji}\n"
+            
+            # 添加操作按钮
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 一键更新", callback_data="one_click_update"),
+                    InlineKeyboardButton("📦 查看备份", callback_data="show_backups")
+                ],
+                [
+                    InlineKeyboardButton("📊 更新状态", callback_data="update_status"),
+                    InlineKeyboardButton("🔙 返回", callback_data="back_to_main")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await message.reply_text(config_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+            
+        except Exception as e:
+            await message.reply_text(f"❌ 获取系统配置失败: {e}")
+    
+    async def one_click_update(self, message):
+        """一键更新系统"""
+        user_id = message.chat.id
+        admin_level = self.config.get_admin_level(user_id)
+        
+        if admin_level != "super":
+            await message.reply_text("❌ 只有超级管理员才能执行系统更新操作。")
+            return
+        
+        # 显示更新确认
+        update_status = self.update_service.get_update_status()
+        
+        confirm_text = f"""
+🔄 **系统更新确认**
+
+📱 当前版本: {update_status.get('current_version', 'unknown')}
+🔄 是否有更新: {'✅ 是' if update_status.get('has_updates') else '❌ 否'}
+
+⚠️ **更新内容:**
+• 📥 从Git拉取最新代码
+• 📚 更新Python依赖包
+• 🔄 重启所有机器人 (除控制机器人)
+• 📦 自动创建备份
+
+**确定要开始更新吗？**
+        """
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ 确认更新", callback_data="confirm_update"),
+                InlineKeyboardButton("❌ 取消", callback_data="system_config")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await message.reply_text(confirm_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+    
+    async def show_backup_list(self, message):
+        """显示备份列表"""
+        backups = self.update_service.get_backup_list()
+        
+        if not backups:
+            await message.reply_text("📦 暂无系统备份")
+            return
+        
+        backup_text = "📦 **系统备份列表**\n\n"
+        
+        for i, backup in enumerate(backups[:10]):  # 只显示最近10个备份
+            backup_text += f"**{i+1}. {backup['name']}**\n"
+            backup_text += f"• 时间: {backup['timestamp']}\n"
+            backup_text += f"• 版本: {backup.get('version', 'unknown')}\n"
+            backup_text += f"• 文件数: {backup['files_count']}\n\n"
+        
+        if len(backups) > 10:
+            backup_text += f"... 还有 {len(backups) - 10} 个备份\n"
+        
+        # 添加操作按钮
+        keyboard = []
+        for i, backup in enumerate(backups[:5]):  # 前5个备份添加回滚按钮
+            keyboard.append([
+                InlineKeyboardButton(
+                    f"↩️ 回滚到 {backup['name'][:15]}...", 
+                    callback_data=f"rollback_{backup['name']}"
+                )
+            ])
+        
+        keyboard.append([
+            InlineKeyboardButton("🔄 刷新列表", callback_data="show_backups"),
+            InlineKeyboardButton("🔙 返回", callback_data="system_config")
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await message.reply_text(backup_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+    
+    async def show_update_status(self, message):
+        """显示详细更新状态"""
+        update_status = self.update_service.get_update_status()
+        
+        status_text = f"""
+📊 **详细更新状态**
+
+📱 **版本信息:**
+• 当前版本: {update_status.get('current_version', 'unknown')}
+• 最后更新版本: {update_status.get('last_version', '未知')}
+• 最后更新时间: {update_status.get('last_update', '从未更新')[:19] if update_status.get('last_update') else '从未更新'}
+
+🔄 **Git状态:**
+• 是否Git仓库: {'✅' if update_status.get('is_git_repo') else '❌'}
+• 落后提交数: {update_status.get('git_behind_count', 0)}
+• 有可用更新: {'✅' if update_status.get('has_updates') else '❌'}
+
+📦 **系统信息:**
+• 备份数量: {update_status.get('backup_count', 0)}
+• Requirements文件: {'✅' if update_status.get('has_requirements') else '❌'}
+• 更新日志: {'✅' if update_status.get('update_log_exists') else '❌'}
+
+🤖 **机器人状态:**
+        """
+        
+        # 添加机器人状态
+        bots_status = self.hot_update.get_all_bots_status()
+        for bot_name, status in bots_status.items():
+            status_emoji = "🟢" if status['running'] else "🔴"
+            status_text += f"• {status['display_name']}: {status_emoji}"
+            if status['running']:
+                status_text += f" (PID: {status['pid']}, 内存: {status['memory_mb']}MB)"
+            status_text += "\n"
+        
+        keyboard = [
+            [
+                InlineKeyboardButton("🔄 刷新状态", callback_data="update_status"),
+                InlineKeyboardButton("🔙 返回", callback_data="system_config")
+            ]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await message.reply_text(status_text, parse_mode=ParseMode.MARKDOWN, reply_markup=reply_markup)
+    
+    async def add_admin_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """添加管理员命令"""
+        user_id = update.effective_user.id
+        
+        if not self.config.is_super_admin(user_id):
+            await update.message.reply_text("❌ 只有超级管理员才能添加管理员。")
+            return
+        
+        if len(context.args) < 2:
+            await update.message.reply_text(
+                "❌ 用法: `/add_admin <用户ID> <权限级别> [用户名]`\n"
+                "权限级别: basic, advanced",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        try:
+            target_user_id = int(context.args[0])
+            permissions = context.args[1].lower()
+            username = context.args[2] if len(context.args) > 2 else None
+            
+            if permissions not in ['basic', 'advanced']:
+                await update.message.reply_text("❌ 权限级别必须是 basic 或 advanced")
+                return
+            
+            # 检查用户是否已经是管理员
+            if self.config.is_admin(target_user_id):
+                await update.message.reply_text("⚠️ 该用户已经是管理员")
+                return
+            
+            # 添加动态管理员
+            success = self.db.add_dynamic_admin(target_user_id, username, permissions, user_id)
+            
+            if success:
+                await update.message.reply_text(
+                    f"✅ 成功添加管理员\n"
+                    f"用户ID: {target_user_id}\n"
+                    f"权限: {permissions}\n"
+                    f"用户名: {username or '未知'}"
+                )
+            else:
+                await update.message.reply_text("❌ 添加管理员失败")
+                
+        except ValueError:
+            await update.message.reply_text("❌ 用户ID必须是数字")
+        except Exception as e:
+            await update.message.reply_text(f"❌ 添加管理员失败: {e}")
+    
+    async def remove_admin_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """移除管理员命令"""
+        user_id = update.effective_user.id
+        
+        if not self.config.is_super_admin(user_id):
+            await update.message.reply_text("❌ 只有超级管理员才能移除管理员。")
+            return
+        
+        if len(context.args) < 1:
+            await update.message.reply_text(
+                "❌ 用法: `/remove_admin <用户ID>`",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return
+        
+        try:
+            target_user_id = int(context.args[0])
+            
+            # 检查是否是动态管理员
+            if not self.db.is_dynamic_admin(target_user_id):
+                await update.message.reply_text("❌ 该用户不是动态管理员")
+                return
+            
+            # 移除动态管理员
+            success = self.db.remove_dynamic_admin(target_user_id, user_id)
+            
+            if success:
+                await update.message.reply_text(f"✅ 成功移除管理员 (ID: {target_user_id})")
+            else:
+                await update.message.reply_text("❌ 移除管理员失败")
+                
+        except ValueError:
+            await update.message.reply_text("❌ 用户ID必须是数字")
+        except Exception as e:
+            await update.message.reply_text(f"❌ 移除管理员失败: {e}")
+    
+    async def update_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """系统更新命令"""
+        user_id = update.effective_user.id
+        
+        if not self.config.is_super_admin(user_id):
+            await update.message.reply_text("❌ 只有超级管理员才能执行系统更新。")
+            return
+        
+        await update.message.reply_text("🔄 开始系统更新...")
+        
+        # 执行完整更新
+        success, result = await self.update_service.full_update()
+        
+        if success:
+            await update.message.reply_text(f"✅ **系统更新成功**\n\n{result}", parse_mode=ParseMode.MARKDOWN)
+        else:
+                         await update.message.reply_text(f"❌ **系统更新失败**\n\n{result}", parse_mode=ParseMode.MARKDOWN)
+    
+    async def confirm_update_action(self, query, user_id):
+        """确认更新操作"""
+        await query.edit_message_text("🔄 开始系统更新，请稍候...")
+        
+        # 执行完整更新
+        success, result = await self.update_service.full_update()
+        
+        if success:
+            await query.edit_message_text(f"✅ **系统更新成功**\n\n{result}", parse_mode=ParseMode.MARKDOWN)
+        else:
+            await query.edit_message_text(f"❌ **系统更新失败**\n\n{result}", parse_mode=ParseMode.MARKDOWN)
+    
+    async def rollback_action(self, query, backup_name):
+        """回滚操作"""
+        await query.edit_message_text(f"↩️ 开始回滚到备份 {backup_name}...")
+        
+        success, result = await self.update_service.rollback_to_backup(backup_name)
+        
+        if success:
+            await query.edit_message_text(f"✅ **回滚成功**\n\n{result}", parse_mode=ParseMode.MARKDOWN)
+        else:
+            await query.edit_message_text(f"❌ **回滚失败**\n\n{result}", parse_mode=ParseMode.MARKDOWN)
+    
+    async def remove_admin_action(self, query, admin_id, removed_by):
+        """移除管理员操作"""
+        success = self.db.remove_dynamic_admin(admin_id, removed_by)
+        
+        if success:
+            await query.edit_message_text(f"✅ 已移除管理员 (ID: {admin_id})")
+        else:
+            await query.edit_message_text(f"❌ 移除管理员失败 (ID: {admin_id})")
+    
     def run(self):
         """启动机器人"""
         # 创建应用
@@ -508,6 +911,9 @@ class ControlBot:
         self.app.add_handler(CommandHandler("logs", self.logs_command))
         self.app.add_handler(CommandHandler("system", self.system_command))
         self.app.add_handler(CommandHandler("help", self.help_command))
+        self.app.add_handler(CommandHandler("add_admin", self.add_admin_command))
+        self.app.add_handler(CommandHandler("remove_admin", self.remove_admin_command))
+        self.app.add_handler(CommandHandler("update", self.update_command))
         
         # 回调处理器
         self.app.add_handler(CallbackQueryHandler(self.handle_callback))
