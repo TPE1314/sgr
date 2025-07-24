@@ -11,6 +11,8 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from telegram.constants import ParseMode
 from config_manager import ConfigManager
+from hot_update_service import HotUpdateService
+from database import DatabaseManager
 
 # 配置日志
 logging.basicConfig(
@@ -26,53 +28,73 @@ logger = logging.getLogger(__name__)
 class ControlBot:
     def __init__(self):
         self.config = ConfigManager()
+        self.db = DatabaseManager(self.config.get_db_file())
+        self.hot_update = HotUpdateService()
         self.app = None
-        self.bot_processes = {
-            'submission': None,
-            'publish': None
-        }
-        self.bot_pids = {}
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理 /start 命令"""
         user_id = update.effective_user.id
+        admin_level = self.config.get_admin_level(user_id)
         
-        if not self.config.is_admin(user_id):
+        if admin_level == "none":
             await update.message.reply_text("❌ 您没有权限使用此机器人。")
             return
         
-        welcome_text = """
+        user_name = update.effective_user.first_name or update.effective_user.username
+        
+        welcome_text = f"""
 🎛️ **机器人控制面板**
 
-欢迎使用控制机器人！您可以管理投稿机器人和发布机器人。
+👋 欢迎 {user_name}！ (权限: {admin_level})
 
-📋 **可用命令：**
-/status - 查看机器人状态
-/start_bots - 启动所有机器人
-/stop_bots - 停止所有机器人
-/restart_bots - 重启所有机器人
-/logs - 查看日志
-/system - 系统信息
-/help - 显示帮助信息
+🤖 **机器人管理：**
+• 启动/停止/重启机器人
+• 热更新配置
+• 实时状态监控
 
-🎮 **快捷控制：**
-使用下方按钮进行快速操作
+👨‍💼 **管理员功能：**
+• 添加/移除动态管理员
+• 查看操作日志
+• 系统资源监控
+
+📋 **快速操作：**
+使用下方按钮进行管理
         """
         
+        # 根据权限级别显示不同的按钮
         keyboard = [
             [
-                InlineKeyboardButton("📊 状态", callback_data="show_status"),
-                InlineKeyboardButton("🚀 启动", callback_data="start_all")
+                InlineKeyboardButton("📊 机器人状态", callback_data="show_status"),
+                InlineKeyboardButton("💻 系统信息", callback_data="system_info")
             ],
             [
-                InlineKeyboardButton("🛑 停止", callback_data="stop_all"),
-                InlineKeyboardButton("🔄 重启", callback_data="restart_all")
+                InlineKeyboardButton("🚀 启动全部", callback_data="start_all"),
+                InlineKeyboardButton("🛑 停止全部", callback_data="stop_all")
             ],
             [
-                InlineKeyboardButton("📋 日志", callback_data="show_logs"),
-                InlineKeyboardButton("💻 系统", callback_data="system_info")
+                InlineKeyboardButton("🔄 重启全部", callback_data="restart_all"),
+                InlineKeyboardButton("🔥 热更新", callback_data="hot_reload_all")
             ]
         ]
+        
+        # 超级管理员才能看到管理员管理功能
+        if admin_level == "super":
+            keyboard.extend([
+                [
+                    InlineKeyboardButton("👨‍💼 管理员列表", callback_data="admin_list"),
+                    InlineKeyboardButton("➕ 添加管理员", callback_data="add_admin")
+                ],
+                [
+                    InlineKeyboardButton("📋 操作日志", callback_data="show_logs"),
+                    InlineKeyboardButton("⚙️ 系统配置", callback_data="system_config")
+                ]
+            ])
+        else:
+            keyboard.append([
+                InlineKeyboardButton("📋 查看日志", callback_data="show_logs")
+            ])
+        
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await update.message.reply_text(
