@@ -135,3 +135,6 @@ telegram.error.InvalidToken: The token `YOUR_SUBMISSION_BOT_TOKEN` was rejected 
 2025-07-24 22:33:25,841 - telegram.ext.Application - INFO - Application started
 2025-07-24 22:33:36,086 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
 2025-07-24 22:33:46,168 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:33:56,255 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:34:06,338 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:34:16,425 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
