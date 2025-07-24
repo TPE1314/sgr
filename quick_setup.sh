@@ -176,6 +176,8 @@ pre_check_database_environment() {
     if [[ ${#missing_files[@]} -gt 0 ]]; then
         log_warning "缺少关键文件: ${missing_files[*]}"
         log_info "这些文件将在下载步骤中获取"
+        # 设置需要紧急修复的标记
+        DATABASE_FIX_NEEDED="true"
         return 0
     fi
     
@@ -2152,6 +2154,12 @@ emergency_database_fix() {
     local need_emergency_fix=false
     local missing_files=()
     
+    # 首先检查预检测结果
+    if [[ "$DATABASE_FIX_NEEDED" == "true" ]]; then
+        log_info "预检测标记: 需要数据库修复"
+        need_emergency_fix=true
+    fi
+    
     # 检查关键文件
     if [[ ! -f "database.py" ]]; then
         missing_files+=("database.py")
@@ -2163,8 +2171,9 @@ emergency_database_fix() {
         need_emergency_fix=true
     fi
     
-    # 测试模块导入
-    if ! python3 -c "
+    # 测试模块导入（只有在文件存在时才测试）
+    if [[ -f "database.py" ]]; then
+        if ! python3 -c "
 import sys
 import os
 sys.path.insert(0, os.getcwd())
@@ -2174,8 +2183,9 @@ try:
 except ImportError:
     print('FAILED')
 " 2>/dev/null | grep -q "SUCCESS"; then
-        need_emergency_fix=true
-        log_warning "数据库模块导入测试失败"
+            need_emergency_fix=true
+            log_warning "数据库模块导入测试失败"
+        fi
     fi
     
     if [[ "$need_emergency_fix" == "false" ]]; then
@@ -2728,20 +2738,44 @@ def setup_environment():
 
 def import_database():
     """智能导入数据库模块"""
+    # 首先确保database.py文件存在
+    db_path = os.path.join(os.getcwd(), 'database.py')
+    if not os.path.exists(db_path):
+        raise ImportError(f"database.py文件不存在: {db_path}")
+    
+    # 清理可能的模块缓存
+    if 'database' in sys.modules:
+        del sys.modules['database']
+    
     try:
-        # 方法1: 标准导入
+        # 方法1: 标准导入 
+        import importlib
+        sys.path.insert(0, os.getcwd())  # 确保当前目录在路径中
         from database import DatabaseManager
+        print("[SUCCESS] 标准导入database模块成功")
         return DatabaseManager
-    except ImportError:
-        # 方法2: 文件路径导入
-        db_path = os.path.join(os.getcwd(), 'database.py')
-        if not os.path.exists(db_path):
-            raise ImportError(f"database.py文件不存在: {db_path}")
+    except ImportError as e:
+        print(f"[WARNING] 标准导入失败: {e}")
         
-        spec = importlib.util.spec_from_file_location("database", db_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module.DatabaseManager
+        # 方法2: 文件路径导入
+        try:
+            print("[INFO] 尝试文件路径导入...")
+            spec = importlib.util.spec_from_file_location("database", db_path)
+            if spec is None:
+                raise ImportError(f"无法创建模块规范: {db_path}")
+            
+            module = importlib.util.module_from_spec(spec)
+            if module is None:
+                raise ImportError(f"无法创建模块: {db_path}")
+            
+            # 添加到sys.modules以避免重复加载
+            sys.modules['database'] = module
+            spec.loader.exec_module(module)
+            
+            print("[SUCCESS] 文件路径导入database模块成功")
+            return module.DatabaseManager
+        except Exception as e:
+            raise ImportError(f"所有导入方法都失败: {e}")
 
 def create_database_file():
     """确保database.py文件存在，如果不存在则创建"""
@@ -2857,6 +2891,43 @@ def main():
         
         # 3. 初始化数据库
         print("[INFO] 初 始 化 数 据 库 表 ...")
+        
+        # 额外的路径设置和验证
+        import importlib
+        import importlib.util
+        
+        # 确保模块路径正确
+        current_dir = os.getcwd()
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+        
+        # 强制重新导入database模块
+        if 'database' in sys.modules:
+            importlib.reload(sys.modules['database'])
+        
+        # 验证database.py文件是否真的存在且可读
+        db_file_path = os.path.join(current_dir, 'database.py')
+        if not os.path.exists(db_file_path):
+            print(f"[ERROR] database.py文件不存在: {db_file_path}")
+            return False
+        
+        if not os.access(db_file_path, os.R_OK):
+            print(f"[ERROR] database.py文件无法读取: {db_file_path}")
+            return False
+        
+        print(f"[SUCCESS] 验证database.py文件存在: {db_file_path}")
+        
+        # 尝试直接从文件路径导入
+        try:
+            spec = importlib.util.spec_from_file_location("database", db_file_path)
+            database_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(database_module)
+            DatabaseManager = database_module.DatabaseManager
+            print("[SUCCESS] 通过文件路径导入database模块成功")
+        except Exception as e:
+            print(f"[ERROR] 文件路径导入失败: {e}")
+            return False
+        
         db = DatabaseManager('telegram_bot.db')
         print("[SUCCESS] 数据库验证完成")
         
