@@ -460,10 +460,10 @@ redis          # 缓存 (可选)
 - **日志分析**: 完整的日志记录和分析
 
 ### 🤝 社区支持
-- **GitHub Issues**: 问题反馈和功能请求
-- **技术交流群**: 实时技术支持
+- **GitHub Issues**: [问题反馈和功能请求](https://github.com/TPE1314/sgr/issues)
+- **项目仓库**: [TPE1314/sgr](https://github.com/TPE1314/sgr)
 - **文档更新**: 持续更新的文档
-- **版本发布**: 定期版本更新和功能增强
+- **版本发布**: [定期版本更新和功能增强](https://github.com/TPE1314/sgr/releases)
 
 ---
 

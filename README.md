@@ -77,7 +77,29 @@
 
 ## 🚀 快速开始
 
+> 💡 **推荐使用一键安装脚本，只需3个命令即可完成部署！**
+
+### 📥 获取项目
+```bash
+# 克隆仓库
+git clone https://github.com/TPE1314/sgr.git
+cd sgr
+
+# 运行一键安装
+chmod +x quick_setup.sh
+./quick_setup.sh
+```
+
+一键安装脚本将自动完成：
+- ✅ 系统环境检测
+- ✅ 依赖包自动安装  
+- ✅ Python环境配置
+- ✅ 交互式配置向导
+- ✅ 系统功能验证
+
 ### 📋 准备工作
+
+在运行安装脚本之前，请确保已准备：
 
 #### 1. 创建Telegram机器人
 1. 与 [@BotFather](https://t.me/BotFather) 对话
@@ -106,26 +128,37 @@
 
 ### 🛠️ 系统安装
 
-#### 方法一: 自动安装 (推荐)
+#### 方法一: 一键安装 (推荐) 🚀
 ```bash
-# 下载并运行安装脚本
-wget https://raw.githubusercontent.com/your-repo/telegram-bot-system/main/install.sh
-chmod +x install.sh
-sudo ./install.sh
+# 1. 克隆仓库
+git clone https://github.com/TPE1314/sgr.git
+cd sgr
+
+# 2. 运行一键安装脚本
+chmod +x quick_setup.sh
+./quick_setup.sh
 ```
 
-#### 方法二: 手动安装
+#### 方法二: 快速安装
 ```bash
-# 1. 更新系统
+# 直接下载并运行安装脚本
+wget https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh
+chmod +x quick_setup.sh
+./quick_setup.sh
+```
+
+#### 方法三: 手动安装
+```bash
+# 1. 克隆项目
+git clone https://github.com/TPE1314/sgr.git
+cd sgr
+
+# 2. 更新系统
 sudo apt update && sudo apt upgrade -y
 
-# 2. 安装基础依赖
+# 3. 安装基础依赖
 sudo apt install -y python3 python3-pip python3-venv git sqlite3 \
                     imagemagick ffmpeg tesseract-ocr tesseract-ocr-chi-sim
-
-# 3. 克隆项目
-git clone https://github.com/your-repo/telegram-bot-system.git
-cd telegram-bot-system
 
 # 4. 创建虚拟环境
 python3 -m venv venv
@@ -719,21 +752,21 @@ cp telegram_bot_backup.db telegram_bot.db
 
 ### 获取帮助
 - 📖 **文档**: 查看本README文档
-- 🐛 **Issue**: 在GitHub提交问题
-- 💬 **社区**: 加入Telegram讨论群
-- 📧 **邮件**: 发送邮件到技术支持
+- 🐛 **Issue**: [提交问题](https://github.com/TPE1314/sgr/issues)
+- 💡 **功能建议**: [提出新功能想法](https://github.com/TPE1314/sgr/issues/new)
+- 📞 **技术支持**: 通过GitHub Issues获取帮助
 
 ### 贡献代码
 欢迎提交Pull Request改进系统：
-1. Fork项目
+1. Fork项目: [TPE1314/sgr](https://github.com/TPE1314/sgr)
 2. 创建功能分支
 3. 提交修改
 4. 发起Pull Request
 
 ### 版本更新通知
-- 关注GitHub Releases
-- 加入通知群组: [@YourBotUpdates](https://t.me/YourBotUpdates)
-- 订阅更新邮件
+- 关注GitHub Releases: [TPE1314/sgr](https://github.com/TPE1314/sgr/releases)
+- ⭐ Star 本项目获取更新通知
+- 📢 关注作者动态
 
 ---
 
