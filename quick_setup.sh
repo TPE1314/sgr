@@ -13,6 +13,7 @@
 # - 系统服务配置
 # - 完整的错误处理和回滚机制
 # - v2.3.0数据库问题终极修复机制
+# - 运行时紧急数据库修复
 # - 机器人代码自动修复(filters/f-string)
 # - 版本管理系统(v2.3.0格式)
 # - 三层保护确保100%成功安装
@@ -2141,6 +2142,471 @@ print('ID格式验证通过')
     log_success "配置验证完成"
 }
 
+# v2.3.0: 紧急数据库修复功能
+emergency_database_fix() {
+    log_header "🚨 v2.3.0 紧急数据库修复"
+    
+    # 检查是否需要紧急修复
+    log_step "检查数据库环境状态..."
+    
+    local need_emergency_fix=false
+    local missing_files=()
+    
+    # 检查关键文件
+    if [[ ! -f "database.py" ]]; then
+        missing_files+=("database.py")
+        need_emergency_fix=true
+    fi
+    
+    if [[ ! -f "config_manager.py" ]]; then
+        missing_files+=("config_manager.py")
+        need_emergency_fix=true
+    fi
+    
+    # 测试模块导入
+    if ! python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+try:
+    from database import DatabaseManager
+    print('SUCCESS')
+except ImportError:
+    print('FAILED')
+" 2>/dev/null | grep -q "SUCCESS"; then
+        need_emergency_fix=true
+        log_warning "数据库模块导入测试失败"
+    fi
+    
+    if [[ "$need_emergency_fix" == "false" ]]; then
+        log_success "数据库环境正常，跳过紧急修复"
+        return 0
+    fi
+    
+    log_warning "检测到数据库环境问题，启动紧急修复..."
+    if [[ ${#missing_files[@]} -gt 0 ]]; then
+        log_info "缺失文件: ${missing_files[*]}"
+    fi
+    
+    # 创建紧急修复脚本
+    log_step "创建v2.3.0紧急修复工具..."
+    
+    cat > emergency_fix_runtime.py << 'EOF'
+#!/usr/bin/env python3
+"""
+v2.3.0 运行时紧急数据库修复脚本
+集成到一键安装脚本中
+"""
+
+import sys
+import os
+import importlib.util
+
+def setup_environment():
+    """配置Python环境"""
+    current_dir = os.getcwd()
+    paths = [current_dir, '.', os.path.abspath('.')]
+    
+    for path in paths:
+        if path and os.path.exists(path) and path not in sys.path:
+            sys.path.insert(0, path)
+    
+    os.environ['PYTHONPATH'] = ':'.join(paths + [os.environ.get('PYTHONPATH', '')]).strip(':')
+    
+    # 清理模块缓存
+    for module in list(sys.modules.keys()):
+        if any(x in module for x in ['database', 'config']):
+            del sys.modules[module]
+
+def create_database_file():
+    """创建database.py文件"""
+    if os.path.exists('database.py'):
+        print("[INFO] database.py 已存在")
+        return True
+    
+    print("[INFO] 创建database.py文件...")
+    
+    database_content = '''import sqlite3
+import datetime
+import json
+from typing import List, Dict, Optional
+
+class DatabaseManager:
+    def __init__(self, db_file: str):
+        self.db_file = db_file
+        self.conn = None
+        self.init_database()
+    
+    def get_connection(self):
+        """获取数据库连接"""
+        if self.conn is None:
+            self.conn = sqlite3.connect(self.db_file)
+        return self.conn
+    
+    def init_database(self):
+        """初始化数据库表"""
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        # 创建投稿表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS submissions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                username TEXT,
+                content_type TEXT NOT NULL,
+                content TEXT,
+                media_file_id TEXT,
+                caption TEXT,
+                status TEXT DEFAULT 'pending',
+                submit_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                review_time TIMESTAMP,
+                publish_time TIMESTAMP,
+                reviewer_id INTEGER,
+                reject_reason TEXT
+            )
+        \\\'\\\'\\\')
+        
+        # 创建用户表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                first_name TEXT,
+                last_name TEXT,
+                is_banned BOOLEAN DEFAULT FALSE,
+                submission_count INTEGER DEFAULT 0,
+                last_submission_time TIMESTAMP,
+                registration_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \\\'\\\'\\\')
+        
+        # 创建管理员表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                permission_level INTEGER DEFAULT 1,
+                added_by INTEGER,
+                added_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \\\'\\\'\\\')
+        
+        # 创建配置表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS config (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        \\\'\\\'\\\')
+        
+        # 创建广告表
+        cursor.execute(\\\'\\\'\\\'
+            CREATE TABLE IF NOT EXISTS advertisements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                ad_type TEXT DEFAULT 'text',
+                position TEXT DEFAULT 'bottom',
+                status TEXT DEFAULT 'active',
+                created_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                click_count INTEGER DEFAULT 0
+            )
+        \\\'\\\'\\\')
+        
+        conn.commit()
+        conn.close()
+    
+    def add_submission(self, user_id: int, username: str, content_type: str, 
+                      content: str = None, media_file_id: str = None, caption: str = None) -> int:
+        """添加投稿"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(\\\'\\\'\\\'
+            INSERT INTO submissions (user_id, username, content_type, content, media_file_id, caption)
+            VALUES (?, ?, ?, ?, ?, ?)
+        \\\'\\\'\\\', (user_id, username, content_type, content, media_file_id, caption))
+        
+        submission_id = cursor.lastrowid
+        conn.commit()
+        return submission_id
+    
+    def get_pending_submissions(self) -> List[Dict]:
+        """获取待审核投稿"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(\\\'\\\'\\\'
+            SELECT * FROM submissions WHERE status = 'pending' ORDER BY submit_time ASC
+        \\\'\\\'\\\')
+        
+        columns = [description[0] for description in cursor.description]
+        return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    
+    def update_submission_status(self, submission_id: int, status: str, reviewer_id: int = None, reject_reason: str = None):
+        """更新投稿状态"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if status == 'approved':
+            cursor.execute(\\\'\\\'\\\'
+                UPDATE submissions SET status = ?, reviewer_id = ?, review_time = CURRENT_TIMESTAMP
+                WHERE id = ?
+            \\\'\\\'\\\', (status, reviewer_id, submission_id))
+        elif status == 'rejected':
+            cursor.execute(\\\'\\\'\\\'
+                UPDATE submissions SET status = ?, reviewer_id = ?, reject_reason = ?, review_time = CURRENT_TIMESTAMP
+                WHERE id = ?
+            \\\'\\\'\\\', (status, reviewer_id, reject_reason, submission_id))
+        else:
+            cursor.execute(\\\'\\\'\\\'
+                UPDATE submissions SET status = ? WHERE id = ?
+            \\\'\\\'\\\', (status, submission_id))
+        
+        conn.commit()
+    
+    def add_user(self, user_id: int, username: str = None, first_name: str = None, last_name: str = None):
+        """添加用户"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(\\\'\\\'\\\'
+            INSERT OR REPLACE INTO users (user_id, username, first_name, last_name)
+            VALUES (?, ?, ?, ?)
+        \\\'\\\'\\\', (user_id, username, first_name, last_name))
+        
+        conn.commit()
+    
+    def get_config(self, key: str, default=None):
+        """获取配置"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT value FROM config WHERE key = ?', (key,))
+        result = cursor.fetchone()
+        
+        if result:
+            return result[0]
+        return default
+    
+    def set_config(self, key: str, value: str):
+        """设置配置"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute(\\\'\\\'\\\'
+            INSERT OR REPLACE INTO config (key, value, updated_time)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+        \\\'\\\'\\\', (key, value))
+        
+        conn.commit()
+'''
+    
+    try:
+        with open('database.py', 'w', encoding='utf-8') as f:
+            f.write(database_content)
+        print("[SUCCESS] database.py 文件创建成功")
+        return True
+    except Exception as e:
+        print(f"[ERROR] database.py 文件创建失败: {e}")
+        return False
+
+def create_config_manager():
+    """创建config_manager.py文件"""
+    if os.path.exists('config_manager.py'):
+        print("[INFO] config_manager.py 已存在")
+        return True
+    
+    print("[INFO] 创建config_manager.py文件...")
+    
+    config_content = '''import configparser
+import os
+import sys
+from typing import List
+
+def fix_import_paths():
+    """修复模块导入路径问题"""
+    current_dir = os.getcwd()
+    project_dirs = [current_dir, '.', os.path.abspath('.')]
+    
+    for path in project_dirs:
+        if path and os.path.exists(path) and path not in sys.path:
+            sys.path.insert(0, path)
+    
+    pythonpath = os.environ.get('PYTHONPATH', '')
+    new_paths = [p for p in project_dirs if p and os.path.exists(p)]
+    os.environ['PYTHONPATH'] = ':'.join(new_paths + [pythonpath]).strip(':')
+
+fix_import_paths()
+
+class ConfigManager:
+    def __init__(self, config_file: str = "config.ini"):
+        self.config_file = config_file
+        self.config = configparser.ConfigParser()
+        self.load_config()
+    
+    def load_config(self):
+        """加载配置文件，优先使用本地配置"""
+        local_config = "config.local.ini"
+        if os.path.exists(local_config):
+            self.config.read(local_config, encoding='utf-8')
+        elif os.path.exists(self.config_file):
+            self.config.read(self.config_file, encoding='utf-8')
+        else:
+            raise FileNotFoundError(f"配置文件 {self.config_file} 和 {local_config} 都不存在")
+    
+    def get(self, section: str, key: str, fallback: str = None) -> str:
+        """获取配置值"""
+        return self.config.get(section, key, fallback=fallback)
+    
+    def get_list(self, section: str, key: str, fallback: List[str] = None) -> List[str]:
+        """获取列表配置值"""
+        value = self.get(section, key)
+        if value:
+            return [item.strip() for item in value.split(',')]
+        return fallback or []
+    
+    def get_int(self, section: str, key: str, fallback: int = 0) -> int:
+        """获取整数配置值"""
+        try:
+            return self.config.getint(section, key)
+        except:
+            return fallback
+    
+    def get_bool(self, section: str, key: str, fallback: bool = False) -> bool:
+        """获取布尔配置值"""
+        try:
+            return self.config.getboolean(section, key)
+        except:
+            return fallback
+    
+    def get_db_file(self) -> str:
+        """获取数据库文件路径"""
+        return self.get('database', 'db_file', 'telegram_bot.db')
+'''
+    
+    try:
+        with open('config_manager.py', 'w', encoding='utf-8') as f:
+            f.write(config_content)
+        print("[SUCCESS] config_manager.py 文件创建成功")
+        return True
+    except Exception as e:
+        print(f"[ERROR] config_manager.py 文件创建失败: {e}")
+        return False
+
+def test_database():
+    """测试数据库功能"""
+    try:
+        from database import DatabaseManager
+        print("[SUCCESS] 数据库模块导入成功")
+        
+        db = DatabaseManager('telegram_bot.db')
+        print("[SUCCESS] 数据库初始化成功")
+        
+        # 测试基本操作
+        db.set_config('emergency_fix', 'v2.3.0')
+        value = db.get_config('emergency_fix')
+        
+        if value == 'v2.3.0':
+            print("[SUCCESS] 数据库读写测试通过")
+            return True
+        else:
+            print("[ERROR] 数据库读写测试失败")
+            return False
+            
+    except Exception as e:
+        print(f"[ERROR] 数据库测试失败: {e}")
+        return False
+
+def create_directories():
+    """创建必要目录"""
+    dirs = ['logs', 'pids', 'backups', 'temp']
+    for dir_name in dirs:
+        os.makedirs(dir_name, exist_ok=True)
+    print(f"[SUCCESS] 创建目录: {', '.join(dirs)}")
+
+def main():
+    """主函数"""
+    print("[INFO] 启动v2.3.0紧急数据库修复...")
+    
+    # 1. 设置环境
+    setup_environment()
+    print("[SUCCESS] Python环境配置完成")
+    
+    # 2. 创建文件
+    if not create_database_file():
+        return False
+    
+    if not create_config_manager():
+        return False
+    
+    # 3. 测试数据库
+    if not test_database():
+        return False
+    
+    # 4. 创建目录
+    create_directories()
+    
+    print("[SUCCESS] 🎉 紧急数据库修复完成！")
+    return True
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)
+EOF
+    
+    # 执行紧急修复
+    log_step "执行紧急数据库修复..."
+    
+    if python3 emergency_fix_runtime.py; then
+        log_success "✅ 紧急数据库修复成功"
+        
+        # 清理临时文件
+        rm -f emergency_fix_runtime.py
+        
+        # 验证修复结果
+        log_step "验证修复结果..."
+        if python3 -c "
+import sys
+import os
+sys.path.insert(0, os.getcwd())
+from database import DatabaseManager
+db = DatabaseManager('telegram_bot.db')
+print('验证成功: 数据库功能正常')
+" 2>/dev/null; then
+            log_success "✅ 数据库功能验证通过"
+            
+            # 设置修复标记
+            DATABASE_FIX_APPLIED="emergency_runtime"
+        else
+            log_warning "⚠️ 数据库功能验证失败，但已尝试修复"
+        fi
+        
+    else
+        log_error "❌ 紧急数据库修复失败"
+        
+        # 保留调试文件
+        log_info "调试文件已保留: emergency_fix_runtime.py"
+        
+        echo
+        echo -e "${YELLOW}💡 手动修复建议：${NC}"
+        echo "1️⃣ 检查Python环境和权限"
+        echo "2️⃣ 运行: python3 emergency_fix_runtime.py"
+        echo "3️⃣ 重新下载完整项目"
+        echo
+        
+        read -p "是否继续安装? 可能遇到数据库问题 (y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            log_error "安装已取消"
+            exit 1
+        fi
+        log_warning "⚠️ 继续安装，可能遇到数据库问题"
+    fi
+}
+
 # v2.3.0: 修复机器人已知问题
 fix_bots_issues() {
     log_info "修复机器人代码中的已知问题..."
@@ -2214,6 +2680,10 @@ init_database() {
     # 检查数据库修复状态
     if [[ "$DATABASE_FIX_APPLIED" == "emergency_fix" ]]; then
         log_success "数据库已通过紧急修复工具修复"
+        log_info "跳过重复初始化，直接验证..."
+        return 0
+    elif [[ "$DATABASE_FIX_APPLIED" == "emergency_runtime" ]]; then
+        log_success "数据库已通过v2.3.0运行时修复"
         log_info "跳过重复初始化，直接验证..."
         return 0
     elif [[ "$DATABASE_FIX_APPLIED" == "not_needed" ]]; then
@@ -3182,9 +3652,9 @@ main() {
     ║    🤖 电报机器人投稿系统 - 一键安装脚本 v2.3.0               ║
     ║                                                              ║
     ║    ✨ v2.3.0 新增特性:                                       ║
-    ║    • 🛡️  数据库问题终极修复  • 🤖 机器人代码自动修复         ║
-    ║    • 📊 版本管理优化        • 🔄 智能预修复机制              ║
-    ║    • 🚀 自动后台运行        • ⚙️  systemd 服务集成          ║
+    ║    • 🛡️  数据库问题终极修复  • 🚨 运行时紧急修复              ║
+    ║    • 🤖 机器人代码自动修复  • 📊 版本管理优化                ║
+    ║    • 🔄 智能预修复机制      • 🚀 自动后台运行                ║
     ║    • 🧪 智能环境诊断        • 💡 智能故障排除                ║
     ║                                                              ║
     ║    🎯 核心功能:                                               ║
@@ -3228,6 +3698,7 @@ EOF
     download_project_files          # 新增：下载项目文件
     verify_downloaded_version       # 新增：验证下载版本
     pre_check_database_environment  # 新增：数据库环境预检测
+    emergency_database_fix           # 新增：紧急数据库修复
     install_system_deps
     check_python
     setup_venv
