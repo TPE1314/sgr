@@ -767,3 +767,16 @@ telegram.error.BadRequest: Can't parse entities: can't find end of the entity st
 2025-07-24 22:57:08,016 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
 2025-07-24 22:57:18,102 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
 2025-07-24 22:57:28,189 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:57:38,275 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:57:48,361 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:57:58,448 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:58:08,536 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:58:18,476 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:58:18,476 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2025-07-24 22:58:18,476 - telegram.ext.Application - INFO - Application.stop() complete
+2025-07-24 22:58:26,231 - __main__ - INFO - 投稿机器人启动中...
+2025-07-24 22:58:26,487 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getMe "HTTP/1.1 200 OK"
+2025-07-24 22:58:26,570 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/deleteWebhook "HTTP/1.1 200 OK"
+2025-07-24 22:58:26,570 - telegram.ext.Application - INFO - Application started
+2025-07-24 22:58:36,836 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
+2025-07-24 22:58:46,927 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot7983511863:AAGTLwLrGF9ZsCu8imXUuq-qnD_OeHCIXM8/getUpdates "HTTP/1.1 200 OK"
