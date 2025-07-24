@@ -16,12 +16,26 @@ git clone https://github.com/TPE1314/sgr.git
 cd sgr
 ```
 
-#### 方法二：直接下载
+#### 方法二：下载ZIP包
 ```bash
-# 下载ZIP包
+# 下载并解压ZIP包
 wget https://github.com/TPE1314/sgr/archive/main.zip
 unzip main.zip
 cd sgr-main
+```
+
+#### 方法三：直接下载安装脚本
+```bash
+# 仅下载安装脚本 (最小化下载)
+wget https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh
+chmod +x quick_setup.sh
+./quick_setup.sh
+```
+
+#### 方法四：一行命令安装
+```bash
+# 最快安装方式 (适合VPS/服务器)
+curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash
 ```
 
 ## ⚡ 一键安装

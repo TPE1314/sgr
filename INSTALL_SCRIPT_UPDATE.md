@@ -237,8 +237,14 @@ Files Created:
 
 ### 快速安装
 ```bash
-# 下载并运行
-wget https://raw.githubusercontent.com/your-repo/quick_setup.sh
+# 方法一：克隆仓库 (推荐)
+git clone https://github.com/TPE1314/sgr.git
+cd sgr
+chmod +x quick_setup.sh
+./quick_setup.sh
+
+# 方法二：直接下载脚本
+wget https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh
 chmod +x quick_setup.sh
 ./quick_setup.sh
 ```
