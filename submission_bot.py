@@ -542,52 +542,16 @@ class SubmissionBot:
         await self.notification_service.send_submission_to_review_group(submission_id)
         logger.info(f"用户 {user.id} \({user.username}) 提交了联系人投稿 #{submission_id}")
     
-    async def handle_group_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """处理群组中的消息，提示用户私聊投稿"""
-        user = update.effective_user
-        chat = update.effective_chat
-        
-        # 记录群组中的尝试投稿
-        logger.info(f"用户 {user.id} ({user.username}) 在群组 {chat.id} ({chat.title}) 中尝试投稿")
-        
-        # 创建私聊按钮
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("💬 点击私聊投稿", url=f"https://t.me/{context.bot.username}")]
-        ])
-        
-        warning_text = f"""
-⚠️ <b>投稿提醒</b>
 
-{user.first_name}，投稿机器人只接收<b>私聊消息</b>！
-
-📝 <b>如何正确投稿：</b>
-1. 点击下方按钮与机器人私聊
-2. 在私聊中发送您要投稿的内容
-3. 等待管理员审核
-
-🚫 <b>群组中无法投稿</b>
-为了保护您的隐私和减少群组干扰，请通过私聊进行投稿。
-        """
-        
-        try:
-            await update.message.reply_text(
-                warning_text,
-                parse_mode=ParseMode.HTML,
-                reply_markup=keyboard,
-                disable_web_page_preview=True
-            )
-        except Exception as e:
-            logger.error(f"发送群组提醒消息失败: {e}")
-    
     def run(self):
         """启动机器人"""
         # 创建应用
         self.app = Application.builder().token(self.config.get_submission_bot_token\()).build()
         
-        # 添加处理器
-        self.app.add_handler(CommandHandler\("start", self.start_command))
-        self.app.add_handler(CommandHandler\("status", self.status_command))
-        self.app.add_handler(CommandHandler\("help", self.help_command))
+        # 添加处理器 - 只在私聊中响应命令
+        self.app.add_handler(CommandHandler\("start", self.start_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler\("status", self.status_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler\("help", self.help_command, filters=filters.ChatType.PRIVATE))
         
         # 消息处理器 - 只接收私聊消息
         self.app.add_handler(MessageHandler\(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, self.handle_text_submission))
@@ -601,9 +565,6 @@ class SubmissionBot:
         self.app.add_handler(MessageHandler\(filters.ANIMATION & filters.ChatType.PRIVATE, self.handle_animation_submission))
         self.app.add_handler(MessageHandler\(filters.LOCATION & filters.ChatType.PRIVATE, self.handle_location_submission))
         self.app.add_handler(MessageHandler\(filters.CONTACT & filters.ChatType.PRIVATE, self.handle_contact_submission))
-        
-        # 群组消息处理器 - 提示用户私聊投稿
-        self.app.add_handler(MessageHandler\(filters.ALL & ~filters.ChatType.PRIVATE & ~filters.COMMAND, self.handle_group_message))
         
         logger.info("投稿机器人启动中...")
         
