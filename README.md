@@ -192,6 +192,8 @@ sudo systemctl restart telegram-bot-system  # 重启服务
 [![使用手册](https://img.shields.io/badge/📖_使用手册-点击查看-blue?style=for-the-badge)](BOT_USAGE_GUIDE.md)
 
 **快速导航：**
+- [🚀 快速参考卡片](QUICK_REFERENCE.md) - 三机器人指令速查
+- [🤖 机器人指令大全](BOT_COMMANDS_GUIDE.md) - 所有指令详细说明
 - [📝 投稿机器人使用指南](BOT_USAGE_GUIDE.md#投稿机器人使用指南) - 用户如何投稿
 - [📢 发布机器人使用指南](BOT_USAGE_GUIDE.md#发布机器人使用指南) - 管理员如何审核
 - [🔧 控制机器人使用指南](BOT_USAGE_GUIDE.md#控制机器人使用指南) - 系统管理操作
