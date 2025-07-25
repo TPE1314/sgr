@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -<i>- coding: utf-8 -</i>-
+# -*- coding: utf-8 -*-
 
 import logging
 import asyncio
@@ -12,7 +12,7 @@ from notification_service import NotificationService
 
 # 配置日志
 logging.basicConfig(
-    format='%\(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
     handlers=[
         logging.FileHandler('submission_bot.log', encoding='utf-8'),
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class SubmissionBot:
     def __init__(self):
         self.config = ConfigManager()
-        self.db = DatabaseManager(self.config.get_db_file\())
+        self.db = DatabaseManager(self.config.get_db_file())
         self.notification_service = NotificationService()
         self.app = None
     
@@ -36,16 +36,16 @@ class SubmissionBot:
 
 👋 你好 {user.first_name}！
 
-📝 <b>如何投稿：</b>
+📝 **如何投稿：**
 • 直接发送文字、图片、视频、文档等内容
 • 支持带说明文字的媒体文件
 • 发送后会自动提交到审核队列
 
-📊 <b>查看投稿状态：</b>
+📊 **查看投稿状态：**
 • 使用 /status 查看你的投稿统计
 • 使用 /my_submissions 查看投稿历史
 
-ℹ️ <b>注意事项：</b>
+ℹ️ **注意事项：**
 • 请确保内容符合社区规范
 • 投稿需要管理员审核后才会发布
 • 请勿发送违规内容
@@ -55,7 +55,7 @@ class SubmissionBot:
         
         await update.message.reply_text(
             welcome_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
     
     async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,7 +70,7 @@ class SubmissionBot:
         stats = self.db.get_user_stats(user_id)
         
         stats_text = f"""
-📊 <b>您的投稿统计</b>
+📊 **您的投稿统计**
 
 📝 总投稿数：{stats['total']}
 ⏳ 待审核：{stats['pending']}
@@ -83,27 +83,27 @@ class SubmissionBot:
         
         await update.message.reply_text(
             stats_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
     
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """帮助命令"""
         help_text = """
-🤖 <b>投稿机器人帮助</b>
+🤖 **投稿机器人帮助**
 
-📋 <b>可用命令：</b>
+📋 **可用命令：**
 /start - 开始使用机器人
 /status - 查看投稿统计
 /help - 显示此帮助信息
 
-📝 <b>投稿方式：</b>
+📝 **投稿方式：**
 • 文字消息：直接发送文字内容
 • 图片：发送图片，可带说明文字
 • 视频：发送视频，可带说明文字
 • 文档：发送文档文件
 • 音频：发送音频文件
 
-✨ <b>小贴士：</b>
+✨ **小贴士：**
 • 所有投稿都会进入审核队列
 • 审核通过后会自动发布到频道
 • 保持内容质量，提高通过率
@@ -113,7 +113,7 @@ class SubmissionBot:
         
         await update.message.reply_text(
             help_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
     
     async def handle_text_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,7 +136,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 📝 类型：文字
@@ -147,13 +147,13 @@ class SubmissionBot:
         
         await update.message.reply_text(
             success_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了文字投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了文字投稿 #{submission_id}")
     
     async def handle_photo_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理图片投稿"""
@@ -177,7 +177,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 🖼️ 类型：图片
@@ -189,13 +189,13 @@ class SubmissionBot:
         
         await update.message.reply_text(
             success_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了图片投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了图片投稿 #{submission_id}")
     
     async def handle_video_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理视频投稿"""
@@ -219,7 +219,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 🎥 类型：视频
@@ -231,13 +231,13 @@ class SubmissionBot:
         
         await update.message.reply_text(
             success_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了视频投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了视频投稿 #{submission_id}")
     
     async def handle_document_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理文档投稿"""
@@ -261,7 +261,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 📎 类型：文档
@@ -274,13 +274,13 @@ class SubmissionBot:
         
         await update.message.reply_text(
             success_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了文档投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了文档投稿 #{submission_id}")
     
     async def handle_audio_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理音频投稿"""
@@ -305,7 +305,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 🎵 类型：{"语音" if content_type == 'voice' else "音频"}
@@ -317,13 +317,13 @@ class SubmissionBot:
         
         await update.message.reply_text(
             success_text,
-            parse_mode=ParseMode.HTML
+            parse_mode=ParseMode.MARKDOWN
         )
         
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了{content_type}投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了{content_type}投稿 #{submission_id}")
     
     async def handle_video_note_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理视频消息投稿（圆形视频）"""
@@ -343,7 +343,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 🎬 类型：视频消息
@@ -352,9 +352,9 @@ class SubmissionBot:
 您的投稿已进入审核队列，请耐心等待管理员审核。
         """
         
-        await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了视频消息投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了视频消息投稿 #{submission_id}")
     
     async def handle_voice_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理语音投稿"""
@@ -374,7 +374,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 🎤 类型：语音
@@ -383,9 +383,9 @@ class SubmissionBot:
 您的投稿已进入审核队列，请耐心等待管理员审核。
         """
         
-        await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了语音投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了语音投稿 #{submission_id}")
     
     async def handle_sticker_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理贴纸投稿"""
@@ -405,7 +405,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 😀 类型：贴纸
@@ -414,9 +414,9 @@ class SubmissionBot:
 您的投稿已进入审核队列，请耐心等待管理员审核。
         """
         
-        await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了贴纸投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了贴纸投稿 #{submission_id}")
     
     async def handle_animation_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理动图投稿（GIF）"""
@@ -438,7 +438,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 🎭 类型：动图
@@ -448,9 +448,9 @@ class SubmissionBot:
 您的投稿已进入审核队列，请耐心等待管理员审核。
         """
         
-        await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了动图投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了动图投稿 #{submission_id}")
     
     async def handle_location_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理位置投稿"""
@@ -473,7 +473,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 📍 类型：位置信息
@@ -483,9 +483,9 @@ class SubmissionBot:
 您的投稿已进入审核队列，请耐心等待管理员审核。
         """
         
-        await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了位置投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了位置投稿 #{submission_id}")
     
     async def handle_contact_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理联系人投稿"""
@@ -512,7 +512,7 @@ class SubmissionBot:
         )
         
         success_text = f"""
-✅ <b>投稿提交成功！</b>
+✅ **投稿提交成功！**
 
 📄 投稿ID：{submission_id}
 👤 类型：联系人
@@ -522,33 +522,33 @@ class SubmissionBot:
 您的投稿已进入审核队列，请耐心等待管理员审核。
         """
         
-        await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
+        await update.message.reply_text(success_text, parse_mode=ParseMode.MARKDOWN)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了联系人投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了联系人投稿 #{submission_id}")
     
     def run(self):
         """启动机器人"""
         # 创建应用
-        self.app = Application.builder().token(self.config.get_submission_bot_token\()).build()
+        self.app = Application.builder().token(self.config.get_submission_bot_token()).build()
         
         # 添加处理器
-        self.app.add_handler(CommandHandler\("start", self.start_command))
-        self.app.add_handler(CommandHandler\("status", self.status_command))
-        self.app.add_handler(CommandHandler\("help", self.help_command))
+        self.app.add_handler(CommandHandler("start", self.start_command))
+        self.app.add_handler(CommandHandler("status", self.status_command))
+        self.app.add_handler(CommandHandler("help", self.help_command))
         
         # 消息处理器
         # 消息处理器
-        self.app.add_handler(MessageHandler\(filters.TEXT & ~filters.COMMAND, self.handle_text_submission))
-        self.app.add_handler(MessageHandler\(filters.PHOTO, self.handle_photo_submission))
-        self.app.add_handler(MessageHandler\(filters.VIDEO, self.handle_video_submission))
-        self.app.add_handler(MessageHandler\(filters.VIDEO_NOTE, self.handle_video_note_submission))
-        self.app.add_handler(MessageHandler\(filters.Document.ALL, self.handle_document_submission))
-        self.app.add_handler(MessageHandler\(filters.AUDIO, self.handle_audio_submission))
-        self.app.add_handler(MessageHandler\(filters.VOICE, self.handle_voice_submission))
-        self.app.add_handler(MessageHandler\(filters.Sticker.ALL, self.handle_sticker_submission))
-        self.app.add_handler(MessageHandler\(filters.ANIMATION, self.handle_animation_submission))
-        self.app.add_handler(MessageHandler\(filters.LOCATION, self.handle_location_submission))
-        self.app.add_handler(MessageHandler\(filters.CONTACT, self.handle_contact_submission))
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_text_submission))
+        self.app.add_handler(MessageHandler(filters.PHOTO, self.handle_photo_submission))
+        self.app.add_handler(MessageHandler(filters.VIDEO, self.handle_video_submission))
+        self.app.add_handler(MessageHandler(filters.VIDEO_NOTE, self.handle_video_note_submission))
+        self.app.add_handler(MessageHandler(filters.Document.ALL, self.handle_document_submission))
+        self.app.add_handler(MessageHandler(filters.AUDIO, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler(filters.VOICE, self.handle_voice_submission))
+        self.app.add_handler(MessageHandler(filters.Sticker.ALL, self.handle_sticker_submission))
+        self.app.add_handler(MessageHandler(filters.ANIMATION, self.handle_animation_submission))
+        self.app.add_handler(MessageHandler(filters.LOCATION, self.handle_location_submission))
+        self.app.add_handler(MessageHandler(filters.CONTACT, self.handle_contact_submission))
         
         logger.info("投稿机器人启动中...")
         
