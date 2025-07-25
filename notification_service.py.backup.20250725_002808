@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# -<i>- coding: utf-8 -</i>-
+# -*- coding: utf-8 -*-
 
 import asyncio
 import logging
@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     def __init__(self):
         self.config = ConfigManager()
-        self.db = DatabaseManager(self.config.get_db_file\())
+        self.db = DatabaseManager(self.config.get_db_file())
         self.publish_bot = None
     
     async def get_publish_bot(self):
         """获取发布机器人实例"""
         if not self.publish_bot:
-            self.publish_bot = Bot(token=self.config.get_publish_bot_token\())
+            self.publish_bot = Bot(token=self.config.get_publish_bot_token())
         return self.publish_bot
     
     async def send_submission_to_review_group(self, submission_id: int):
@@ -39,47 +39,47 @@ class NotificationService:
             
             # 构建完整的审核信息
             header_text = f"""
-🔍 <b>投稿审核 #{submission['id']}</b>
+🔍 **投稿审核 #{submission['id']}**
 
-👤 <b>投稿用户信息：</b>
+👤 **投稿用户信息：**
 • 用户名：{submission['username']}
 • 用户ID：{submission['user_id']}
 • 状态：{'🚫 已封禁' if is_banned else '✅ 正常'}
 
-📊 <b>用户投稿统计：</b>
+📊 **用户投稿统计：**
 • 总投稿：{user_stats['total']} 条
 • 待审核：{user_stats['pending']} 条
 • 已发布：{user_stats['published']} 条
 • 已拒绝：{user_stats['rejected']} 条
 • 通过率：{(user_stats['published'] / user_stats['total'] * 100) if user_stats['total'] > 0 else 0:.1f}%
 
-⏰ <b>投稿信息：</b>
+⏰ **投稿信息：**
 • 投稿时间：{submission['submit_time']}
 • 内容类型：{self._get_content_type_display(submission['content_type'])}
             """
             
             # 添加内容信息
             if submission['content_type'] == 'text':
-                header_text += f"\n📄 <b>投稿内容：</b>\n{submission['content'][:500]}"
+                header_text += f"\n📄 **投稿内容：**\n{submission['content'][:500]}"
                 if len(submission['content']) > 500:
                     header_text += "...(内容过长已截断)"
             elif submission['caption']:
-                header_text += f"\n📝 <b>说明文字：</b>\n{submission['caption'][:200]}"
+                header_text += f"\n📝 **说明文字：**\n{submission['caption'][:200]}"
                 if len(submission['caption']) > 200:
                     header_text += "...(说明过长已截断)"
             
             # 创建审核按钮
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ 批准并发布", callback_data=f"approve_{submission\['id']}"),
+                    InlineKeyboardButton("✅ 批准并发布", callback_data=f"approve_{submission['id']}"),
                     InlineKeyboardButton("❌ 拒绝投稿", callback_data=f"reject_{submission['id']}")
                 ],
                 [
-                    InlineKeyboardButton("📊 详细统计", callback_data=f"user_stats_{submission\['user_id']}"),
+                    InlineKeyboardButton("📊 详细统计", callback_data=f"user_stats_{submission['user_id']}"),
                     InlineKeyboardButton("🚫 封禁用户", callback_data=f"ban_user_{submission['user_id']}")
                 ],
                 [
-                    InlineKeyboardButton("🔄 刷新信息", callback_data=f"refresh_{submission\['id']}"),
+                    InlineKeyboardButton("🔄 刷新信息", callback_data=f"refresh_{submission['id']}"),
                     InlineKeyboardButton("📋 查看原文", callback_data=f"view_full_{submission['id']}")
                 ]
             ]
@@ -91,7 +91,7 @@ class NotificationService:
                 await bot.send_message(
                     chat_id=review_group_id,
                     text=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'photo':
@@ -100,7 +100,7 @@ class NotificationService:
                     chat_id=review_group_id,
                     photo=submission['media_file_id'],
                     caption=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'video':
@@ -109,7 +109,7 @@ class NotificationService:
                     chat_id=review_group_id,
                     video=submission['media_file_id'],
                     caption=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'video_note':
@@ -123,7 +123,7 @@ class NotificationService:
                 await bot.send_message(
                     chat_id=review_group_id,
                     text=header_text,
-                    parse_mode=ParseMode.HTML
+                    parse_mode=ParseMode.MARKDOWN
                 )
             elif submission['content_type'] == 'document':
                 # 文档投稿
@@ -131,7 +131,7 @@ class NotificationService:
                     chat_id=review_group_id,
                     document=submission['media_file_id'],
                     caption=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'voice':
@@ -140,7 +140,7 @@ class NotificationService:
                     chat_id=review_group_id,
                     voice=submission['media_file_id'],
                     caption=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'audio':
@@ -149,7 +149,7 @@ class NotificationService:
                     chat_id=review_group_id,
                     audio=submission['media_file_id'],
                     caption=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'sticker':
@@ -163,7 +163,7 @@ class NotificationService:
                 await bot.send_message(
                     chat_id=review_group_id,
                     text=header_text,
-                    parse_mode=ParseMode.HTML
+                    parse_mode=ParseMode.MARKDOWN
                 )
             elif submission['content_type'] == 'animation':
                 # GIF动图
@@ -171,7 +171,7 @@ class NotificationService:
                     chat_id=review_group_id,
                     animation=submission['media_file_id'],
                     caption=header_text,
-                    parse_mode=ParseMode.HTML,
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'location':
@@ -180,8 +180,8 @@ class NotificationService:
                 location_data = submission['content']  # 这里应该是经纬度信息
                 await bot.send_message(
                     chat_id=review_group_id,
-                    text=header_text + f"\n📍 <b>位置信息：</b>\n{location_data}",
-                    parse_mode=ParseMode.HTML,
+                    text=header_text + f"\n📍 **位置信息：**\n{location_data}",
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             elif submission['content_type'] == 'contact':
@@ -189,16 +189,16 @@ class NotificationService:
                 contact_data = submission['content']  # 这里应该是联系人信息
                 await bot.send_message(
                     chat_id=review_group_id,
-                    text=header_text + f"\n👤 <b>联系人信息：</b>\n{contact_data}",
-                    parse_mode=ParseMode.HTML,
+                    text=header_text + f"\n👤 **联系人信息：**\n{contact_data}",
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             else:
                 # 未知类型，发送纯文本
                 await bot.send_message(
                     chat_id=review_group_id,
-                    text=header_text + f"\n⚠️ <b>未知内容类型：</b> {submission['content_type']}",
-                    parse_mode=ParseMode.HTML,
+                    text=header_text + f"\n⚠️ **未知内容类型：** {submission['content_type']}",
+                    parse_mode=ParseMode.MARKDOWN,
                     reply_markup=reply_markup
                 )
             
@@ -235,7 +235,7 @@ class NotificationService:
             
             # 这里可以通过投稿机器人发送通知给用户
             # 由于需要跨机器人通信，可以通过数据库或其他方式实现
-            logger.info(f"投稿 #{submission_id} 审核结果: {'批准' if approved else '拒绝'} \(审核员: {reviewer_name})")
+            logger.info(f"投稿 #{submission_id} 审核结果: {'批准' if approved else '拒绝'} (审核员: {reviewer_name})")
             return True
             
         except Exception as e:

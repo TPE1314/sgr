@@ -2661,6 +2661,50 @@ fix_bots_issues() {
         log_info "已创建config.local.ini，请确保配置了正确的token"
     fi
     
+    # 修复 Markdown 实体解析错误
+    log_step "修复Telegram Markdown实体解析错误..."
+    
+    # 创建修复脚本
+    cat > fix_markdown_entities_temp.py << 'EOF'
+import os
+import re
+
+def fix_markdown_in_file(filepath):
+    if not os.path.exists(filepath):
+        return False
+    
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 将 ParseMode.MARKDOWN 改为 ParseMode.HTML
+        if 'ParseMode.MARKDOWN' in content:
+            content = content.replace('ParseMode.MARKDOWN', 'ParseMode.HTML')
+            
+            # 将 Markdown 格式转换为 HTML 格式
+            content = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', content)
+            content = re.sub(r'(?<!\*)\*([^*]+?)\*(?!\*)', r'<i>\1</i>', content)
+            content = re.sub(r'`([^`]+?)`', r'<code>\1</code>', content)
+            content = re.sub(r'```(.*?)```', r'<pre>\1</pre>', content, flags=re.DOTALL)
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(content)
+            return True
+    except:
+        pass
+    return False
+
+# 修复文件
+files = ['submission_bot.py', 'publish_bot.py', 'control_bot.py', 'notification_service.py', 'real_time_notification.py']
+for f in files:
+    if fix_markdown_in_file(f):
+        print(f"修复了 {f}")
+EOF
+    
+    python3 fix_markdown_entities_temp.py 2>/dev/null || true
+    rm -f fix_markdown_entities_temp.py
+    log_success "Markdown实体解析错误修复完成"
+    
     # 语法检查
     log_step "执行Python语法检查..."
     local syntax_errors=0
