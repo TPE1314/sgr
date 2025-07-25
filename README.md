@@ -100,6 +100,52 @@
 curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/quick_setup.sh | bash
 ```
 
+## 🔄 一键更新
+
+系统现在支持智能一键更新功能：
+
+### 📥 使用一键更新脚本
+```bash
+# 运行一键更新脚本
+./one_click_update.sh
+
+# 或者直接下载并运行
+curl -fsSL https://raw.githubusercontent.com/TPE1314/sgr/main/one_click_update.sh -o one_click_update.sh && chmod +x one_click_update.sh && ./one_click_update.sh
+```
+
+### 🔧 修复数据互通问题
+```bash
+# 如果遇到投稿机器人和发布机器人数据不互通问题
+python3 fix_data_sync.py
+```
+
+### 🔍 系统状态检查
+```bash
+# 全面检查系统健康状态
+python3 check_system_status.py
+```
+
+### ✨ 更新功能特点
+- 🔄 **自动备份**: 更新前自动备份所有重要文件
+- 🛑 **安全停止**: 优雅停止所有机器人进程
+- 📦 **代码更新**: 从GitHub拉取最新代码
+- 🔧 **依赖更新**: 自动更新Python依赖包
+- 🐛 **问题修复**: 自动修复已知的兼容性问题
+- ✅ **系统验证**: 验证所有关键文件和配置
+- 🚀 **智能启动**: 按顺序启动所有机器人
+- 📊 **状态报告**: 显示详细的更新结果
+
+### 📋 更新流程
+1. **环境检查** - 验证Python、Git等必要组件
+2. **系统备份** - 备份配置文件、数据库、日志等
+3. **停止服务** - 优雅停止所有机器人进程
+4. **代码更新** - Git拉取最新版本代码
+5. **依赖更新** - 更新Python包依赖
+6. **问题修复** - 自动修复Markdown、过滤器等问题
+7. **系统验证** - 检查关键文件和配置完整性
+8. **服务启动** - 重新启动所有机器人
+9. **状态确认** - 验证所有服务正常运行
+
 **v2.3.0 安装特性**：
 - 🔧 **自动修复数据库问题**: 无需手动干预
 - 🤖 **智能代码修复**: 自动修复已知的语法问题
@@ -197,6 +243,7 @@ sudo systemctl restart telegram-bot-system  # 重启服务
 - [📝 投稿机器人使用指南](BOT_USAGE_GUIDE.md#投稿机器人使用指南) - 用户如何投稿
 - [📢 发布机器人使用指南](BOT_USAGE_GUIDE.md#发布机器人使用指南) - 管理员如何审核
 - [🔧 控制机器人使用指南](BOT_USAGE_GUIDE.md#控制机器人使用指南) - 系统管理操作
+- [🔄 一键更新指南](ONE_CLICK_UPDATE_GUIDE.md) - 系统更新详细教程 🆕
 - [❓ 常见问题解答](BOT_USAGE_GUIDE.md#常见问题解答) - 问题解决方案
 
 ### 📋 准备工作
