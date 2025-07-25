@@ -48,6 +48,91 @@ class UpdateService:
             logger.error(f"设置版本信息失败: {e}")
             return False
     
+    def increment_version(self, version_type: str = "patch") -> str:
+        """递增版本号
+        
+        Args:
+            version_type: "patch" (小更新) 或 "minor" (中间位更新)
+        
+        Returns:
+            新的版本号
+        """
+        try:
+            current = self.get_current_version()
+            # 移除v前缀并分割版本号
+            if current.startswith('v'):
+                current = current[1:]
+            
+            parts = current.split('.')
+            if len(parts) != 3:
+                logger.error(f"版本号格式错误: {current}")
+                return "v2.3.0"
+            
+            major, minor, patch = map(int, parts)
+            
+            if version_type == "patch":
+                # 小更新：尾数+1，最多到7
+                if patch < 7:
+                    patch += 1
+                else:
+                    # 尾数到7了，中间位+1，尾数重置为0
+                    minor += 1
+                    patch = 0
+            elif version_type == "minor":
+                # 中间位更新：直接+1，尾数重置为0
+                minor += 1
+                patch = 0
+            elif version_type == "major":
+                # 主版本更新：主版本+1，其他重置为0
+                major += 1
+                minor = 0
+                patch = 0
+            
+            new_version = f"v{major}.{minor}.{patch}"
+            
+            # 保存新版本
+            self.set_version(new_version)
+            logger.info(f"版本已更新: {current} -> {new_version}")
+            
+            return new_version
+            
+        except Exception as e:
+            logger.error(f"版本递增失败: {e}")
+            return self.get_current_version()
+    
+    def get_next_version(self, version_type: str = "patch") -> str:
+        """获取下一个版本号（不保存）"""
+        try:
+            current = self.get_current_version()
+            if current.startswith('v'):
+                current = current[1:]
+            
+            parts = current.split('.')
+            if len(parts) != 3:
+                return "v2.3.1"
+            
+            major, minor, patch = map(int, parts)
+            
+            if version_type == "patch":
+                if patch < 7:
+                    patch += 1
+                else:
+                    minor += 1
+                    patch = 0
+            elif version_type == "minor":
+                minor += 1
+                patch = 0
+            elif version_type == "major":
+                major += 1
+                minor = 0
+                patch = 0
+            
+            return f"v{major}.{minor}.{patch}"
+            
+        except Exception as e:
+            logger.error(f"获取下一版本失败: {e}")
+            return "v2.3.1"
+    
     def create_backup(self) -> Tuple[bool, str]:
         """创建系统备份"""
         try:
