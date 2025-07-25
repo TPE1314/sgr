@@ -37,20 +37,24 @@ class SubmissionBot:
 👋 你好 {user.first_name}！
 
 📝 <b>如何投稿：</b>
-• 直接发送文字、图片、视频、文档等内容
+• 直接在<b>私聊中</b>发送文字、图片、视频、文档等内容
 • 支持带说明文字的媒体文件
 • 发送后会自动提交到审核队列
 
+🚫 <b>重要提醒：</b>
+• <b>只接收私聊投稿</b>，群组中无法投稿
+• 这样可以保护您的隐私，避免群组干扰
+
 📊 <b>查看投稿状态：</b>
 • 使用 /status 查看你的投稿统计
-• 使用 /my_submissions 查看投稿历史
+• 使用 /help 查看帮助信息
 
 ℹ️ <b>注意事项：</b>
 • 请确保内容符合社区规范
 • 投稿需要管理员审核后才会发布
 • 请勿发送违规内容
 
-开始投稿吧！直接发送内容即可。
+开始投稿吧！直接在私聊中发送内容即可。
         """
         
         await update.message.reply_text(
@@ -96,17 +100,29 @@ class SubmissionBot:
 /status - 查看投稿统计
 /help - 显示此帮助信息
 
-📝 <b>投稿方式：</b>
+🚫 <b>重要说明：</b>
+• <b>只接收私聊投稿</b>，群组中无法投稿
+• 请在与机器人的私聊中发送内容
+
+📝 <b>支持的投稿类型：</b>
 • 文字消息：直接发送文字内容
 • 图片：发送图片，可带说明文字
 • 视频：发送视频，可带说明文字
 • 文档：发送文档文件
 • 音频：发送音频文件
+• 动图/贴纸：发送动图或贴纸
+• 位置信息：发送位置
+• 联系人：发送联系人信息
 
-✨ <b>小贴士：</b>
-• 所有投稿都会进入审核队列
-• 审核通过后会自动发布到频道
-• 保持内容质量，提高通过率
+✨ <b>投稿流程：</b>
+1. 在私聊中发送内容
+2. 内容自动进入审核队列
+3. 管理员审核后发布到频道
+
+💡 <b>提高通过率的技巧：</b>
+• 保持内容质量和原创性
+• 确保内容符合社区规范
+• 添加适当的说明文字
 
 如有问题，请联系管理员。
         """
@@ -526,29 +542,29 @@ class SubmissionBot:
         await self.notification_service.send_submission_to_review_group(submission_id)
         logger.info(f"用户 {user.id} \({user.username}) 提交了联系人投稿 #{submission_id}")
     
+
     def run(self):
         """启动机器人"""
         # 创建应用
         self.app = Application.builder().token(self.config.get_submission_bot_token\()).build()
         
-        # 添加处理器
-        self.app.add_handler(CommandHandler\("start", self.start_command))
-        self.app.add_handler(CommandHandler\("status", self.status_command))
-        self.app.add_handler(CommandHandler\("help", self.help_command))
+        # 添加处理器 - 只在私聊中响应命令
+        self.app.add_handler(CommandHandler\("start", self.start_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler\("status", self.status_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler\("help", self.help_command, filters=filters.ChatType.PRIVATE))
         
-        # 消息处理器
-        # 消息处理器
-        self.app.add_handler(MessageHandler\(filters.TEXT & ~filters.COMMAND, self.handle_text_submission))
-        self.app.add_handler(MessageHandler\(filters.PHOTO, self.handle_photo_submission))
-        self.app.add_handler(MessageHandler\(filters.VIDEO, self.handle_video_submission))
-        self.app.add_handler(MessageHandler\(filters.VIDEO_NOTE, self.handle_video_note_submission))
-        self.app.add_handler(MessageHandler\(filters.Document.ALL, self.handle_document_submission))
-        self.app.add_handler(MessageHandler\(filters.AUDIO, self.handle_audio_submission))
-        self.app.add_handler(MessageHandler\(filters.VOICE, self.handle_voice_submission))
-        self.app.add_handler(MessageHandler\(filters.Sticker.ALL, self.handle_sticker_submission))
-        self.app.add_handler(MessageHandler\(filters.ANIMATION, self.handle_animation_submission))
-        self.app.add_handler(MessageHandler\(filters.LOCATION, self.handle_location_submission))
-        self.app.add_handler(MessageHandler\(filters.CONTACT, self.handle_contact_submission))
+        # 消息处理器 - 只接收私聊消息
+        self.app.add_handler(MessageHandler\(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, self.handle_text_submission))
+        self.app.add_handler(MessageHandler\(filters.PHOTO & filters.ChatType.PRIVATE, self.handle_photo_submission))
+        self.app.add_handler(MessageHandler\(filters.VIDEO & filters.ChatType.PRIVATE, self.handle_video_submission))
+        self.app.add_handler(MessageHandler\(filters.VIDEO_NOTE & filters.ChatType.PRIVATE, self.handle_video_note_submission))
+        self.app.add_handler(MessageHandler\(filters.Document.ALL & filters.ChatType.PRIVATE, self.handle_document_submission))
+        self.app.add_handler(MessageHandler\(filters.AUDIO & filters.ChatType.PRIVATE, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler\(filters.VOICE & filters.ChatType.PRIVATE, self.handle_voice_submission))
+        self.app.add_handler(MessageHandler\(filters.Sticker.ALL & filters.ChatType.PRIVATE, self.handle_sticker_submission))
+        self.app.add_handler(MessageHandler\(filters.ANIMATION & filters.ChatType.PRIVATE, self.handle_animation_submission))
+        self.app.add_handler(MessageHandler\(filters.LOCATION & filters.ChatType.PRIVATE, self.handle_location_submission))
+        self.app.add_handler(MessageHandler\(filters.CONTACT & filters.ChatType.PRIVATE, self.handle_contact_submission))
         
         logger.info("投稿机器人启动中...")
         

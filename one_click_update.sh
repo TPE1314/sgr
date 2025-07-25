@@ -214,6 +214,39 @@ fix_markdown() {
     fi
 }
 
+# 确保投稿机器人只接收私聊
+fix_submission_bot_privacy() {
+    log_header "确保投稿机器人只接收私聊"
+    
+    if [[ -f "submission_bot.py" ]]; then
+        # 检查是否已经配置了私聊限制
+        if grep -q "filters.ChatType.PRIVATE" submission_bot.py; then
+            log_success "投稿机器人已配置为只接收私聊"
+        else
+            log_info "正在配置投稿机器人私聊限制..."
+            
+            # 备份原文件
+            cp submission_bot.py submission_bot.py.backup
+            
+            # 为CommandHandler添加私聊过滤器
+            sed -i 's/CommandHandler("start", self.start_command)/CommandHandler("start", self.start_command, filters=filters.ChatType.PRIVATE)/g' submission_bot.py
+            sed -i 's/CommandHandler("status", self.status_command)/CommandHandler("status", self.status_command, filters=filters.ChatType.PRIVATE)/g' submission_bot.py
+            sed -i 's/CommandHandler("help", self.help_command)/CommandHandler("help", self.help_command, filters=filters.ChatType.PRIVATE)/g' submission_bot.py
+            
+            # 为MessageHandler添加私聊过滤器
+            sed -i 's/filters\.TEXT & ~filters\.COMMAND/filters.TEXT \& ~filters.COMMAND \& filters.ChatType.PRIVATE/g' submission_bot.py
+            sed -i 's/filters\.PHOTO)/filters.PHOTO \& filters.ChatType.PRIVATE)/g' submission_bot.py
+            sed -i 's/filters\.VIDEO)/filters.VIDEO \& filters.ChatType.PRIVATE)/g' submission_bot.py
+            sed -i 's/filters\.AUDIO)/filters.AUDIO \& filters.ChatType.PRIVATE)/g' submission_bot.py
+            sed -i 's/filters\.VOICE)/filters.VOICE \& filters.ChatType.PRIVATE)/g' submission_bot.py
+            
+            log_success "投稿机器人私聊限制配置完成"
+        fi
+    else
+        log_warning "submission_bot.py文件不存在"
+    fi
+}
+
 # 更新版本信息
 update_version() {
     log_header "更新版本信息"
@@ -402,6 +435,7 @@ main() {
     update_version
     fix_database
     fix_markdown
+    fix_submission_bot_privacy
     verify_system
     start_bots
     show_result
