@@ -2,15 +2,28 @@
 """
 版本管理工具
 支持特殊的版本递增规则：尾数最多到7，然后中间位+1
+支持Git提交哈希值版本格式：x.x.提交哈希值
 """
 
 import sys
 import os
-from typing import Tuple
+import subprocess
+from typing import Tuple, Optional
 
 class VersionManager:
     def __init__(self, version_file: str = ".version"):
         self.version_file = version_file
+    
+    def get_git_commit_hash(self, short: bool = True) -> Optional[str]:
+        """获取Git提交哈希值"""
+        try:
+            cmd = ["git", "rev-parse", "--short", "HEAD"] if short else ["git", "rev-parse", "HEAD"]
+            result = subprocess.run(cmd, capture_output=True, text=True, cwd=os.getcwd())
+            if result.returncode == 0:
+                return result.stdout.strip()
+            return None
+        except Exception:
+            return None
     
     def get_current_version(self) -> str:
         """获取当前版本"""
@@ -36,6 +49,21 @@ class VersionManager:
             print(f"❌ 设置版本失败: {e}")
             return False
     
+    def generate_git_hash_version(self, major: int = 2, minor: int = 3) -> str:
+        """生成基于Git提交哈希值的版本号"""
+        commit_hash = self.get_git_commit_hash(short=True)
+        if commit_hash:
+            return f"v{major}.{minor}.{commit_hash}"
+        else:
+            print("⚠️ 无法获取Git提交哈希值，使用默认版本")
+            return f"v{major}.{minor}.0"
+    
+    def update_to_git_hash_version(self, major: int = 2, minor: int = 3) -> str:
+        """更新版本为Git提交哈希值格式"""
+        new_version = self.generate_git_hash_version(major, minor)
+        self.set_version(new_version)
+        return new_version
+    
     def parse_version(self, version: str) -> Tuple[int, int, int]:
         """解析版本号"""
         if version.startswith('v'):
@@ -45,7 +73,14 @@ class VersionManager:
         if len(parts) != 3:
             raise ValueError(f"版本格式错误: {version}")
         
-        return tuple(map(int, parts))
+        # 如果第三部分是数字，直接转换；如果是哈希值，返回0
+        try:
+            patch = int(parts[2])
+        except ValueError:
+            # 第三部分不是数字，可能是哈希值
+            patch = 0
+        
+        return (int(parts[0]), int(parts[1]), patch)
     
     def format_version(self, major: int, minor: int, patch: int) -> str:
         """格式化版本号"""
@@ -98,44 +133,36 @@ class VersionManager:
         current = self.get_current_version()
         major, minor, patch = self.parse_version(current)
         
-        if version_type == "patch":
-            if patch < 7:
-                patch += 1
-            else:
-                minor += 1
-                patch = 0
+        if version_type == "major":
+            return self.format_version(major + 1, 0, 0)
         elif version_type == "minor":
-            minor += 1
-            patch = 0
-        elif version_type == "major":
-            major += 1
-            minor = 0
-            patch = 0
-        
-        return self.format_version(major, minor, patch)
+            return self.format_version(major, minor + 1, 0)
+        else:  # patch
+            if patch < 7:
+                return self.format_version(major, minor, patch + 1)
+            else:
+                return self.format_version(major, minor + 1, 0)
     
     def show_version_info(self):
         """显示版本信息"""
-        current = self.get_current_version()
+        current_version = self.get_current_version()
+        commit_hash = self.get_git_commit_hash(short=True)
+        full_hash = self.get_git_commit_hash(short=False)
         
-        print("=" * 50)
-        print("🎯 版本管理工具")
-        print("=" * 50)
-        print(f"📋 当前版本: {current}")
-        print(f"📈 下一个小更新: {self.get_next_version('patch')}")
-        print(f"📊 下一个中间更新: {self.get_next_version('minor')}")
-        print(f"🚀 下一个主版本: {self.get_next_version('major')}")
-        print()
+        print(f"📋 版本信息:")
+        print(f"   当前版本: {current_version}")
+        if commit_hash:
+            print(f"   Git提交: {commit_hash}")
+            print(f"   完整哈希: {full_hash}")
+        else:
+            print(f"   Git提交: 无法获取")
         
-        # 显示规则
-        try:
-            major, minor, patch = self.parse_version(current)
-            if patch == 7:
-                print("⚠️ 尾数已达上限(7)，下次小更新将自动递增中间位")
-            else:
-                print(f"ℹ️ 尾数可更新 {7-patch} 次到达上限")
-        except:
-            pass
+        # 检查是否为Git哈希版本
+        if commit_hash and commit_hash in current_version:
+            print(f"   ✅ 当前使用Git哈希版本格式")
+        else:
+            print(f"   ℹ️ 当前使用传统版本格式")
+            print(f"   建议: 使用 'git-hash' 命令更新为Git哈希版本格式")
 
 def main():
     """主函数"""
@@ -181,6 +208,20 @@ def main():
         next_ver = vm.get_next_version(version_type)
         print(f"📋 下一个{version_type}版本: {next_ver}")
         
+    elif command in ['git-hash', 'gh', 'git']:
+        print("🔗 更新为Git提交哈希值版本格式...")
+        if len(sys.argv) > 2:
+            try:
+                major = int(sys.argv[2])
+                minor = int(sys.argv[3]) if len(sys.argv) > 3 else 3
+                new_version = vm.update_to_git_hash_version(major, minor)
+            except (ValueError, IndexError):
+                print("❌ 参数格式错误，使用默认值 v2.3.{hash}")
+                new_version = vm.update_to_git_hash_version()
+        else:
+            new_version = vm.update_to_git_hash_version()
+        print(f"🎉 版本已更新为Git哈希格式: {new_version}")
+        
     else:
         print("❌ 未知命令")
         print_usage()
@@ -199,6 +240,10 @@ def print_usage():
   python3 version_manager.py minor    # 中间位更新 (v2.3.7 -> v2.4.0)
   python3 version_manager.py major    # 主版本更新 (v2.4.7 -> v3.0.0)
 
+🔗 Git哈希版本:
+  python3 version_manager.py git-hash        # 更新为 v2.3.{commit_hash}
+  python3 version_manager.py git-hash 3 1   # 更新为 v3.1.{commit_hash}
+
 ⚙️ 其他功能:
   python3 version_manager.py set v2.5.0    # 设置指定版本
   python3 version_manager.py next patch    # 预览下一版本
@@ -207,8 +252,10 @@ def print_usage():
   • 小更新: 尾数递增，最多到7
   • 到达7后: 中间位+1，尾数重置为0
   • 主版本: 主版本+1，其他重置为0
+  • Git哈希版本: x.x.{commit_hash} 格式
 
 示例: v2.3.0 -> v2.3.1 -> ... -> v2.3.7 -> v2.4.0
+Git哈希版本示例: v2.3.35396e8
     """)
 
 if __name__ == "__main__":
