@@ -25,7 +25,7 @@ from advertisement_manager import (
 
 # 配置日志
 logging.basicConfig(
-    format='%\(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
     handlers=[
         logging.FileHandler('control_bot.log', encoding='utf-8'),
@@ -37,14 +37,14 @@ logger = logging.getLogger(__name__)
 class ControlBot:
     def __init__(self):
         self.config = ConfigManager()
-        self.db = DatabaseManager(self.config.get_db_file\())
+        self.db = DatabaseManager(self.config.get_db_file())
         self.hot_update = HotUpdateService()
         self.update_service = UpdateService()
         self.file_update = FileUpdateService()
         
         # 初始化广告管理器
         try:
-            self.ad_manager = initialize_ad_manager(self.config.get_db_file\())
+            self.ad_manager = initialize_ad_manager(self.config.get_db_file())
         except:
             self.ad_manager = get_ad_manager()
         self.app = None
@@ -81,7 +81,7 @@ class ControlBot:
         
         # 根据权限级别显示不同的按钮
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("📊 机器人状态", callback_data="show_status"),
                 InlineKeyboardButton("💻 系统信息", callback_data="system_info")
             ],
@@ -98,8 +98,8 @@ class ControlBot:
         # 超级管理员才能看到管理员管理功能
         if admin_level == "super":
             keyboard.extend([
-                \[
-                    InlineKeyboardButton\("👨‍💼 管理员列表", callback_data="admin_list"),
+                [
+                    InlineKeyboardButton("👨‍💼 管理员列表", callback_data="admin_list"),
                     InlineKeyboardButton("➕ 添加管理员", callback_data="add_admin")
                 ],
                 [
@@ -117,7 +117,7 @@ class ControlBot:
             ])
         else:
             keyboard.append([
-                InlineKeyboardButton\("📋 查看日志", callback_data="show_logs")
+                InlineKeyboardButton("📋 查看日志", callback_data="show_logs")
             ])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -128,7 +128,7 @@ class ControlBot:
             reply_markup=reply_markup
         )
     
-    async def status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def status_command(self, update: Update, context:ContextTypes.DEFAULT_TYPE):
         """查看机器人状态"""
         user_id = update.effective_user.id
         
@@ -160,7 +160,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("🔄 刷新", callback_data="show_status"),
                 InlineKeyboardButton("📋 详细日志", callback_data="show_logs")
             ]
@@ -305,14 +305,14 @@ class ControlBot:
             if bot_name in self.bot_processes and self.bot_processes[bot_name]:
                 try:
                     # 发送SIGTERM信号
-                    os.killpg(os.getpgid\(self.bot_processes[bot_name].pid), signal.SIGTERM)
+                    os.killpg(os.getpgid(self.bot_processes[bot_name].pid), signal.SIGTERM)
                     self.bot_processes[bot_name].wait(timeout=5)
                     stopped = True
                     logger.info(f"通过进程组停止了 {bot_name} 机器人")
                 except (subprocess.TimeoutExpired, ProcessLookupError):
                     # 如果SIGTERM不行，使用SIGKILL
                     try:
-                        os.killpg(os.getpgid\(self.bot_processes[bot_name].pid), signal.SIGKILL)
+                        os.killpg(os.getpgid(self.bot_processes[bot_name].pid), signal.SIGKILL)
                         stopped = True
                         logger.info(f"强制停止了 {bot_name} 机器人")
                     except ProcessLookupError:
@@ -488,7 +488,7 @@ class ControlBot:
         elif data == "update_status":
             await self.show_update_status(query.message)
         elif data.startswith("remove_admin_"):
-            admin_id = int(data.split\("_")[2])
+            admin_id = int(data.split("_")[2])
             await self.remove_admin_action(query, admin_id, user_id)
         elif data.startswith("rollback_"):
             backup_name = data.replace("rollback_", "")
@@ -516,16 +516,16 @@ class ControlBot:
         elif data == "ad_config":
             await self.show_ad_config(query)
         elif data.startswith("edit_ad_"):
-            ad_id = int(data.replace\("edit_ad_", ""))
+            ad_id = int(data.replace("edit_ad_", ""))
             await self.show_edit_ad(query, ad_id)
         elif data.startswith("delete_ad_"):
-            ad_id = int(data.replace\("delete_ad_", ""))
+            ad_id = int(data.replace("delete_ad_", ""))
             await self.confirm_delete_ad(query, ad_id)
         elif data.startswith("confirm_delete_ad_"):
-            ad_id = int(data.replace\("confirm_delete_ad_", ""))
+            ad_id = int(data.replace("confirm_delete_ad_", ""))
             await self.delete_ad_action(query, ad_id)
         elif data.startswith("toggle_ad_"):
-            ad_id = int(data.replace\("toggle_ad_", ""))
+            ad_id = int(data.replace("toggle_ad_", ""))
             await self.toggle_ad_status(query, ad_id)
         elif data == "toggle_ad_system":
             await self.toggle_ad_system(query)
@@ -631,7 +631,7 @@ class ControlBot:
             admin_text += f"• ID: {admin_id} (权限: super)\n"
         
         # 动态管理员
-        admin_text += f"\n👥 <b>动态管理员 ({len\(dynamic_admins)} 人):</b>\n"
+        admin_text += f"\n👥 <b>动态管理员 ({len(dynamic_admins)} 人):</b>\n"
         if dynamic_admins:
             for admin in dynamic_admins:
                 admin_text += f"• @{admin['username'] or 'N/A'} (ID: {admin['user_id']}, 权限: {admin['permissions']})\n"
@@ -642,11 +642,11 @@ class ControlBot:
         # 添加管理按钮
         keyboard = []
         if dynamic_admins:
-            keyboard.append([InlineKeyboardButton\("🗑️ 管理动态管理员", callback_data="manage_dynamic_admins")])
+            keyboard.append([InlineKeyboardButton("🗑️ 管理动态管理员", callback_data="manage_dynamic_admins")])
         
         keyboard.extend([
-            \[
-                InlineKeyboardButton\("➕ 添加管理员", callback_data="add_admin"),
+            [
+                InlineKeyboardButton("➕ 添加管理员", callback_data="add_admin"),
                 InlineKeyboardButton("🔄 刷新列表", callback_data="admin_list")
             ],
             [InlineKeyboardButton("🔙 返回主菜单", callback_data="back_to_main")]
@@ -711,7 +711,7 @@ class ControlBot:
             
             # 添加操作按钮
             keyboard = [
-                \[
+                [
                     InlineKeyboardButton("🔄 一键更新", callback_data="one_click_update"),
                     InlineKeyboardButton("📦 查看备份", callback_data="show_backups")
                 ],
@@ -755,7 +755,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("✅ 确认更新", callback_data="confirm_update"),
                 InlineKeyboardButton("❌ 取消", callback_data="system_config")
             ]
@@ -787,14 +787,14 @@ class ControlBot:
         keyboard = []
         for i, backup in enumerate(backups[:5]):  # 前5个备份添加回滚按钮
             keyboard.append([
-                InlineKeyboardButton\(
-                    f"↩️ 回滚到 {backup\['name'][:15]}...", 
+                InlineKeyboardButton(
+                    f"↩️ 回滚到 {backup['name'][:15]}...", 
                     callback_data=f"rollback_{backup['name']}"
                 )
             ])
         
         keyboard.append([
-            InlineKeyboardButton\("🔄 刷新列表", callback_data="show_backups"),
+            InlineKeyboardButton("🔄 刷新列表", callback_data="show_backups"),
             InlineKeyboardButton("🔙 返回", callback_data="system_config")
         ])
         
@@ -836,7 +836,7 @@ class ControlBot:
             status_text += "\n"
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("🔄 刷新状态", callback_data="update_status"),
                 InlineKeyboardButton("🔙 返回", callback_data="system_config")
             ]
@@ -920,7 +920,7 @@ class ControlBot:
             success = self.db.remove_dynamic_admin(target_user_id, user_id)
             
             if success:
-                await update.message.reply_text(f"✅ 成功移除管理员 \(ID: {target_user_id})")
+                await update.message.reply_text(f"✅ 成功移除管理员 (ID: {target_user_id})")
             else:
                 await update.message.reply_text("❌ 移除管理员失败")
                 
@@ -975,9 +975,9 @@ class ControlBot:
         success = self.db.remove_dynamic_admin(admin_id, removed_by)
         
         if success:
-            await query.edit_message_text(f"✅ 已移除管理员 \(ID: {admin_id})")
+            await query.edit_message_text(f"✅ 已移除管理员 (ID: {admin_id})")
         else:
-            await query.edit_message_text(f"❌ 移除管理员失败 \(ID: {admin_id})")
+            await query.edit_message_text(f"❌ 移除管理员失败 (ID: {admin_id})")
     
     async def handle_document(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理文档文件"""
@@ -992,8 +992,8 @@ class ControlBot:
         file_size = document.file_size
         
         # 基础验证
-        if file_size > 5 </i> 1024 <i> 1024:  # 5MB
-            await update.message.reply_text(f"❌ 文件过大: {file_size / 1024 / 1024:.1f}MB \(最大5MB)")
+        if file_size > 5 * 1024 * 1024:  # 5MB
+            await update.message.reply_text(f"❌ 文件过大: {file_size / 1024 / 1024:.1f}MB (最大5MB)")
             return
         
         # 检查文件类型
@@ -1019,7 +1019,7 @@ class ControlBot:
             os.makedirs(self.file_update.temp_dir, exist_ok=True)
             temp_file_path = os.path.join(
                 self.file_update.temp_dir, 
-                f"upload_{datetime.now\().strftime('%Y%m%d_%H%M%S')}_{file_name}"
+                f"upload_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file_name}"
             )
             
             await file.download_to_drive(temp_file_path)
@@ -1057,7 +1057,7 @@ class ControlBot:
             os.makedirs(self.file_update.temp_dir, exist_ok=True)
             temp_file_path = os.path.join(
                 self.file_update.temp_dir,
-                f"archive_{datetime.now\().strftime('%Y%m%d_%H%M%S')}_{document.file_name}"
+                f"archive_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{document.file_name}"
             )
             
             await file.download_to_drive(temp_file_path)
@@ -1116,10 +1116,10 @@ class ControlBot:
         
         # 创建确认按钮
         import base64
-        file_info = base64.b64encode(f"{temp_file_path}|{analysis['file_name']}".encode\()).decode()
+        file_info = base64.b64encode(f"{temp_file_path}|{analysis['file_name']}".encode()).decode()
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("✅ 确认更新", callback_data=f"confirm_file_update_{file_info}"),
                 InlineKeyboardButton("❌ 取消", callback_data="cancel_file_update")
             ],
@@ -1133,7 +1133,7 @@ class ControlBot:
         """确认文件更新"""
         try:
             import base64
-            decoded_info = base64.b64decode(file_info.encode\()).decode()
+            decoded_info = base64.b64decode(file_info.encode()).decode()
             temp_file_path, target_name = decoded_info.split('|')
             
             if not os.path.exists(temp_file_path):
@@ -1184,8 +1184,8 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
-                InlineKeyboardButton("🔄 立即重启", callback_data=f"restart_bots_{','.join\(bot_names)}"),
+            [
+                InlineKeyboardButton("🔄 立即重启", callback_data=f"restart_bots_{','.join(bot_names)}"),
                 InlineKeyboardButton("⏭️ 稍后手动", callback_data="back_to_main")
             ]
         ]
@@ -1224,7 +1224,7 @@ class ControlBot:
             history_text += f"• 文件大小: {record['file_size']} bytes\n\n"
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("🔄 刷新历史", callback_data="file_update_history"),
                 InlineKeyboardButton("🔙 返回", callback_data="back_to_main")
             ]
@@ -1236,28 +1236,28 @@ class ControlBot:
     def run(self):
         """启动机器人"""
         # 创建应用
-        self.app = Application.builder().token(self.config.get_admin_bot_token\()).build()
+        self.app = Application.builder().token(self.config.get_admin_bot_token()).build()
         
         # 添加处理器
-        self.app.add_handler(CommandHandler\("start", self.start_command))
-        self.app.add_handler(CommandHandler\("status", self.status_command))
-        self.app.add_handler(CommandHandler\("start_bots", self.start_bots_command))
-        self.app.add_handler(CommandHandler\("stop_bots", self.stop_bots_command))
-        self.app.add_handler(CommandHandler\("restart_bots", self.restart_bots_command))
-        self.app.add_handler(CommandHandler\("logs", self.logs_command))
-        self.app.add_handler(CommandHandler\("system", self.system_command))
-        self.app.add_handler(CommandHandler\("help", self.help_command))
-        self.app.add_handler(CommandHandler\("add_admin", self.add_admin_command))
-        self.app.add_handler(CommandHandler\("remove_admin", self.remove_admin_command))
-        self.app.add_handler(CommandHandler\("update", self.update_command))
-        self.app.add_handler(CommandHandler\("create_ad", self.create_ad_command))
-        self.app.add_handler(CommandHandler\("ads", self.ads_command))
+        self.app.add_handler(CommandHandler("start", self.start_command))
+        self.app.add_handler(CommandHandler("status", self.status_command))
+        self.app.add_handler(CommandHandler("start_bots", self.start_bots_command))
+        self.app.add_handler(CommandHandler("stop_bots", self.stop_bots_command))
+        self.app.add_handler(CommandHandler("restart_bots", self.restart_bots_command))
+        self.app.add_handler(CommandHandler("logs", self.logs_command))
+        self.app.add_handler(CommandHandler("system", self.system_command))
+        self.app.add_handler(CommandHandler("help", self.help_command))
+        self.app.add_handler(CommandHandler("add_admin", self.add_admin_command))
+        self.app.add_handler(CommandHandler("remove_admin", self.remove_admin_command))
+        self.app.add_handler(CommandHandler("update", self.update_command))
+        self.app.add_handler(CommandHandler("create_ad", self.create_ad_command))
+        self.app.add_handler(CommandHandler("ads", self.ads_command))
         
         # 文件处理器
-        self.app.add_handler(MessageHandler\(filters.Document.ALL, self.handle_document))
+        self.app.add_handler(MessageHandler(filters.Document.ALL, self.handle_document))
         
         # 回调处理器
-        self.app.add_handler(CallbackQueryHandler\(self.handle_callback))
+        self.app.add_handler(CallbackQueryHandler(self.handle_callback))
         
         logger.info("控制机器人启动中...")
         
@@ -1294,7 +1294,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("➕ 创建广告", callback_data="create_ad"),
                 InlineKeyboardButton("📋 广告列表", callback_data="ad_list")
             ],
@@ -1384,16 +1384,16 @@ class ControlBot:
         if active_ads:
             # 按点击率排序
             sorted_ads = sorted(active_ads, 
-                              key=lambda x: (x.click_count / max\(x.display_count, 1)), 
+                              key=lambda x: (x.click_count / max(x.display_count, 1)), 
                               reverse=True)[:5]
             
             text += f"\n🏆 <b>表现最佳广告:</b>\n"
             for i, ad in enumerate(sorted_ads, 1):
-                ctr = (ad.click_count / max\(ad.display_count, 1)) </i> 100
+                ctr = (ad.click_count / max(ad.display_count, 1)) * 100
                 text += f"{i}. {ad.name} - CTR: {ctr:.1f}%\n"
         
         keyboard = [
-            \[InlineKeyboardButton("🔄 刷新数据", callback_data="ad_statistics")],
+            [InlineKeyboardButton("🔄 刷新数据", callback_data="ad_statistics")],
             [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
         ]
         
@@ -1417,11 +1417,11 @@ class ControlBot:
         if not ads:
             text = "📝 <b>广告列表</b>\n\n暂无广告，点击下方按钮创建第一个广告。"
             keyboard = [
-                \[InlineKeyboardButton("➕ 创建广告", callback_data="create_ad")],
+                [InlineKeyboardButton("➕ 创建广告", callback_data="create_ad")],
                 [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
             ]
         else:
-            text = f"📝 <b>广告列表</b> (共 {len\(ads)} 个)\n\n"
+            text = f"📝 <b>广告列表</b> (共 {len(ads)} 个)\n\n"
             
             keyboard = []
             for ad in ads[:10]:  # 显示前10个广告
@@ -1448,7 +1448,7 @@ class ControlBot:
                 text += f"   展示: {ad.display_count} | 点击: {ad.click_count}\n\n"
                 
                 keyboard.append([
-                    InlineKeyboardButton\(f"✏️ {ad.name}", callback_data=f"edit_ad_{ad.id}"),
+                    InlineKeyboardButton(f"✏️ {ad.name}", callback_data=f"edit_ad_{ad.id}"),
                     InlineKeyboardButton(
                         "🔴 暂停" if ad.status == AdStatus.ACTIVE else "🟢 启用",
                         callback_data=f"toggle_ad_{ad.id}"
@@ -1459,7 +1459,7 @@ class ControlBot:
                 text += f"... 还有 {len(ads) - 10} 个广告"
             
             keyboard.extend([
-                \[InlineKeyboardButton\("➕ 创建新广告", callback_data="create_ad")],
+                [InlineKeyboardButton("➕ 创建新广告", callback_data="create_ad")],
                 [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
             ])
         
@@ -1515,7 +1515,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
+            [InlineKeyboardButton("🔙 返回广告管理", callback_data="ad_management")]
         ]
         
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1547,7 +1547,7 @@ class ControlBot:
 
 📝 <b>广告分隔符:</b>
 </code>`<code>
-{config.ad_separator.replace(chr\(10), chr(92) + 'n')}
+{config.ad_separator.replace(chr(10), chr(92) + 'n')}
 </code>`<code>
 
 💡 <b>说明:</b>
@@ -1557,7 +1557,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton(
                     f"{'🔴 禁用' if config.enabled else '🟢 启用'}广告系统",
                     callback_data="toggle_ad_system"
@@ -1639,7 +1639,7 @@ class ControlBot:
 📊 <b>统计数据:</b>
 • 展示次数: {ad.display_count:,}
 • 点击次数: {ad.click_count:,}
-• 点击率: {(ad.click_count / max\(ad.display_count, 1) * 100):.2f}%
+• 点击率: {(ad.click_count / max(ad.display_count, 1) * 100):.2f}%
 • 优先级: {ad.priority}
 • 权重: {ad.weight}
 
@@ -1654,7 +1654,7 @@ class ControlBot:
             text += f"\n🔘 <b>按钮文字:</b> {ad.button_text}"
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton(
                     "🔴 暂停" if ad.status == AdStatus.ACTIVE else "🟢 启用",
                     callback_data=f"toggle_ad_{ad.id}"
@@ -1719,7 +1719,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("✅ 确认删除", callback_data=f"confirm_delete_ad_{ad_id}"),
                 InlineKeyboardButton("❌ 取消", callback_data=f"edit_ad_{ad_id}")
             ]
@@ -1867,7 +1867,7 @@ class ControlBot:
 • 广告ID: {ad_id}
 • 名称: {ad.name}
 • 类型: {ad.type.value}
-• 状态: 草稿 \(需要手动启用)
+• 状态: 草稿 (需要手动启用)
 
 使用 </code>/ads` 命令管理您的广告。
             """, parse_mode=ParseMode.HTML)
@@ -1924,7 +1924,7 @@ class ControlBot:
         """
         
         keyboard = [
-            \[
+            [
                 InlineKeyboardButton("📊 机器人状态", callback_data="show_status"),
                 InlineKeyboardButton("💻 系统信息", callback_data="system_info")
             ],
@@ -1940,8 +1940,8 @@ class ControlBot:
         
         if admin_level == "super":
             keyboard.extend([
-                \[
-                    InlineKeyboardButton\("👨‍💼 管理员列表", callback_data="admin_list"),
+                [
+                    InlineKeyboardButton("👨‍💼 管理员列表", callback_data="admin_list"),
                     InlineKeyboardButton("➕ 添加管理员", callback_data="add_admin")
                 ],
                 [
@@ -1959,7 +1959,7 @@ class ControlBot:
             ])
         else:
             keyboard.append([
-                InlineKeyboardButton\("📋 查看日志", callback_data="show_logs")
+                InlineKeyboardButton("📋 查看日志", callback_data="show_logs")
             ])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
