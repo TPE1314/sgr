@@ -12,7 +12,7 @@ from advertisement_manager import get_ad_manager, initialize_ad_manager, AdPosit
 
 # 配置日志
 logging.basicConfig(
-    format='%\(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
     handlers=[
         logging.FileHandler('publish_bot.log', encoding='utf-8'),
@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 class PublishBot:
     def __init__(self):
         self.config = ConfigManager()
-        self.db = DatabaseManager(self.config.get_db_file\())
+        self.db = DatabaseManager(self.config.get_db_file())
         
         # 初始化广告管理器
         try:
-            self.ad_manager = initialize_ad_manager(self.config.get_db_file\())
+            self.ad_manager = initialize_ad_manager(self.config.get_db_file())
         except:
             self.ad_manager = get_ad_manager()
         
@@ -97,7 +97,7 @@ class PublishBot:
         # 创建审核按钮
         keyboard = [
             [
-                InlineKeyboardButton("✅ 批准", callback_data=f"approve_{submission\['id']}"),
+                InlineKeyboardButton("✅ 批准", callback_data=f"approve_{submission['id']}"),
                 InlineKeyboardButton("❌ 拒绝", callback_data=f"reject_{submission['id']}")
             ],
             [
@@ -182,19 +182,19 @@ class PublishBot:
         data = query.data
         
         if data.startswith("approve_"):
-            submission_id = int(data.split\("_")[1])
+            submission_id = int(data.split("_")[1])
             await self.approve_submission_in_group(query, submission_id, user_id, user_name)
         
         elif data.startswith("reject_"):
-            submission_id = int(data.split\("_")[1])
+            submission_id = int(data.split("_")[1])
             await self.reject_submission_in_group(query, submission_id, user_id, user_name)
         
         elif data.startswith("user_stats_"):
-            user_target_id = int(data.split\("_")[2])
+            user_target_id = int(data.split("_")[2])
             await self.show_user_stats(query, user_target_id)
         
         elif data.startswith("ban_user_"):
-            user_target_id = int(data.split\("_")[2])
+            user_target_id = int(data.split("_")[2])
             await self.ban_user_action(query, user_target_id, user_id)
         
         elif data == "next_submission":
@@ -326,11 +326,11 @@ class PublishBot:
                 parse_mode=ParseMode.HTML
             )
             
-            logger.info(f"管理员 {reviewer_id} \({reviewer_name}) 在审核群中批准了投稿 #{submission_id}")
+            logger.info(f"管理员 {reviewer_id} ({reviewer_name}) 在审核群中批准了投稿 #{submission_id}")
             
         except Exception as e:
             logger.error(f"发布投稿 #{submission_id} 失败: {e}")
-            await query.edit_message_text(f"❌ 发布失败: {str\(e)}")
+            await query.edit_message_text(f"❌ 发布失败: {str(e)}")
     
     async def reject_submission_in_group(self, query, submission_id, reviewer_id, reviewer_name):
         """在审核群中拒绝投稿"""
@@ -367,7 +367,7 @@ class PublishBot:
             parse_mode=ParseMode.HTML
         )
         
-        logger.info(f"管理员 {reviewer_id} \({reviewer_name}) 在审核群中拒绝了投稿 #{submission_id}")
+        logger.info(f"管理员 {reviewer_id} ({reviewer_name}) 在审核群中拒绝了投稿 #{submission_id}")
     
     async def show_user_stats(self, query, user_id):
         """显示用户统计信息"""
@@ -387,7 +387,7 @@ class PublishBot:
 📢 已发布：{stats['published']}
 ❌ 已拒绝：{stats['rejected']}
 
-通过率：{(stats['published'] / stats['total'] <i> 100) if stats['total'] > 0 else 0:.1f}%
+通过率：{(stats['published'] / stats['total'] * 100) if stats['total'] > 0 else 0:.1f}%
         """
         
         await query.message.reply_text(
@@ -415,7 +415,7 @@ class PublishBot:
     async def publish_to_channel(self, submission):
         """发布到频道（含广告）"""
         if not self.publisher_bot:
-            self.publisher_bot = Bot(token=self.config.get_publish_bot_token\())
+            self.publisher_bot = Bot(token=self.config.get_publish_bot_token())
         
         channel_id = self.config.get_channel_id()
         
@@ -493,7 +493,7 @@ class PublishBot:
             # 记录广告展示
             await self._record_ad_displays(ads_by_position, submission['id'], message.message_id)
             
-            logger.info(f"投稿 #{submission['id']} 已发布到频道（含{len(sum(ads_by_position.values\(), []))}个广告）")
+            logger.info(f"投稿 #{submission['id']} 已发布到频道（含{len(sum(ads_by_position.values(), []))}个广告）")
             
         except Exception as e:
             logger.error(f"发布投稿 #{submission['id']} 到频道失败: {e}")
@@ -591,13 +591,13 @@ class PublishBot:
         
         # 获取各种统计数据
         import sqlite3
-        conn = sqlite3.connect(self.config.get_db_file\())
+        conn = sqlite3.connect(self.config.get_db_file())
         cursor = conn.cursor()
         
         # 获取投稿统计
         cursor.execute('''
             SELECT 
-                COUNT\(</i>) as total,
+                COUNT(*) as total,
                 COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
                 COUNT(CASE WHEN status = 'approved' THEN 1 END) as approved,
                 COUNT(CASE WHEN status = 'published' THEN 1 END) as published,
@@ -609,13 +609,13 @@ class PublishBot:
         
         # 获取今日投稿数
         cursor.execute('''
-            SELECT COUNT\(*) FROM submissions 
+            SELECT COUNT(*) FROM submissions 
             WHERE DATE(submit_time) = DATE('now')
         ''')
         today_submissions = cursor.fetchone()[0]
         
         # 获取活跃用户数
-        cursor.execute('SELECT COUNT\(DISTINCT user_id) FROM submissions')
+        cursor.execute('SELECT COUNT(DISTINCT user_id) FROM submissions')
         unique_users = cursor.fetchone()[0]
         
         conn.close()
@@ -683,16 +683,16 @@ class PublishBot:
     def run(self):
         """启动机器人"""
         # 创建应用
-        self.app = Application.builder().token(self.config.get_publish_bot_token\()).build()
+        self.app = Application.builder().token(self.config.get_publish_bot_token()).build()
         
         # 添加处理器
-        self.app.add_handler(CommandHandler\("start", self.start_command))
-        self.app.add_handler(CommandHandler\("pending", self.pending_command))
-        self.app.add_handler(CommandHandler\("stats", self.stats_command))
-        self.app.add_handler(CommandHandler\("help", self.help_command))
+        self.app.add_handler(CommandHandler("start", self.start_command))
+        self.app.add_handler(CommandHandler("pending", self.pending_command))
+        self.app.add_handler(CommandHandler("stats", self.stats_command))
+        self.app.add_handler(CommandHandler("help", self.help_command))
         
         # 回调处理器
-        self.app.add_handler(CallbackQueryHandler\(self.handle_callback))
+        self.app.add_handler(CallbackQueryHandler(self.handle_callback))
         
         logger.info("发布机器人启动中...")
         

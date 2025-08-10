@@ -12,7 +12,7 @@ from notification_service import NotificationService
 
 # 配置日志
 logging.basicConfig(
-    format='%\(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
     handlers=[
         logging.FileHandler('submission_bot.log', encoding='utf-8'),
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class SubmissionBot:
     def __init__(self):
         self.config = ConfigManager()
-        self.db = DatabaseManager(self.config.get_db_file\())
+        self.db = DatabaseManager(self.config.get_db_file())
         self.notification_service = NotificationService()
         self.app = None
     
@@ -169,7 +169,7 @@ class SubmissionBot:
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了文字投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了文字投稿 #{submission_id}")
     
     async def handle_photo_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理图片投稿"""
@@ -211,7 +211,7 @@ class SubmissionBot:
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了图片投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了图片投稿 #{submission_id}")
     
     async def handle_video_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理视频投稿"""
@@ -253,9 +253,9 @@ class SubmissionBot:
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了视频投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了视频投稿 #{submission_id}")
     
-    async def handle_document_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def handle_document_submission(self, update: Update, context:ContextTypes.DEFAULT_TYPE):
         """处理文档投稿"""
         user = update.effective_user
         
@@ -296,7 +296,7 @@ class SubmissionBot:
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了文档投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了文档投稿 #{submission_id}")
     
     async def handle_audio_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理音频投稿"""
@@ -339,7 +339,7 @@ class SubmissionBot:
         # 发送到审核群
         await self.notification_service.send_submission_to_review_group(submission_id)
         
-        logger.info(f"用户 {user.id} \({user.username}) 提交了{content_type}投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了{content_type}投稿 #{submission_id}")
     
     async def handle_video_note_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理视频消息投稿（圆形视频）"""
@@ -370,7 +370,7 @@ class SubmissionBot:
         
         await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了视频消息投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了视频消息投稿 #{submission_id}")
     
     async def handle_voice_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理语音投稿"""
@@ -401,7 +401,7 @@ class SubmissionBot:
         
         await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了语音投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了语音投稿 #{submission_id}")
     
     async def handle_sticker_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理贴纸投稿"""
@@ -432,7 +432,7 @@ class SubmissionBot:
         
         await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了贴纸投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了贴纸投稿 #{submission_id}")
     
     async def handle_animation_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理动图投稿（GIF）"""
@@ -466,7 +466,7 @@ class SubmissionBot:
         
         await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了动图投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了动图投稿 #{submission_id}")
     
     async def handle_location_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理位置投稿"""
@@ -501,7 +501,7 @@ class SubmissionBot:
         
         await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了位置投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了位置投稿 #{submission_id}")
     
     async def handle_contact_submission(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理联系人投稿"""
@@ -540,31 +540,31 @@ class SubmissionBot:
         
         await update.message.reply_text(success_text, parse_mode=ParseMode.HTML)
         await self.notification_service.send_submission_to_review_group(submission_id)
-        logger.info(f"用户 {user.id} \({user.username}) 提交了联系人投稿 #{submission_id}")
+        logger.info(f"用户 {user.id} ({user.username}) 提交了联系人投稿 #{submission_id}")
     
 
     def run(self):
         """启动机器人"""
         # 创建应用
-        self.app = Application.builder().token(self.config.get_submission_bot_token\()).build()
+        self.app = Application.builder().token(self.config.get_submission_bot_token()).build()
         
         # 添加处理器 - 只在私聊中响应命令
-        self.app.add_handler(CommandHandler\("start", self.start_command, filters=filters.ChatType.PRIVATE))
-        self.app.add_handler(CommandHandler\("status", self.status_command, filters=filters.ChatType.PRIVATE))
-        self.app.add_handler(CommandHandler\("help", self.help_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler("start", self.start_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler("status", self.status_command, filters=filters.ChatType.PRIVATE))
+        self.app.add_handler(CommandHandler("help", self.help_command, filters=filters.ChatType.PRIVATE))
         
         # 消息处理器 - 只接收私聊消息
-        self.app.add_handler(MessageHandler\(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, self.handle_text_submission))
-        self.app.add_handler(MessageHandler\(filters.PHOTO & filters.ChatType.PRIVATE, self.handle_photo_submission))
-        self.app.add_handler(MessageHandler\(filters.VIDEO & filters.ChatType.PRIVATE, self.handle_video_submission))
-        self.app.add_handler(MessageHandler\(filters.VIDEO_NOTE & filters.ChatType.PRIVATE, self.handle_video_note_submission))
-        self.app.add_handler(MessageHandler\(filters.Document.ALL & filters.ChatType.PRIVATE, self.handle_document_submission))
-        self.app.add_handler(MessageHandler\(filters.AUDIO & filters.ChatType.PRIVATE, self.handle_audio_submission))
-        self.app.add_handler(MessageHandler\(filters.VOICE & filters.ChatType.PRIVATE, self.handle_voice_submission))
-        self.app.add_handler(MessageHandler\(filters.Sticker.ALL & filters.ChatType.PRIVATE, self.handle_sticker_submission))
-        self.app.add_handler(MessageHandler\(filters.ANIMATION & filters.ChatType.PRIVATE, self.handle_animation_submission))
-        self.app.add_handler(MessageHandler\(filters.LOCATION & filters.ChatType.PRIVATE, self.handle_location_submission))
-        self.app.add_handler(MessageHandler\(filters.CONTACT & filters.ChatType.PRIVATE, self.handle_contact_submission))
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE, self.handle_text_submission))
+        self.app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, self.handle_photo_submission))
+        self.app.add_handler(MessageHandler(filters.VIDEO & filters.ChatType.PRIVATE, self.handle_video_submission))
+        self.app.add_handler(MessageHandler(filters.VIDEO_NOTE & filters.ChatType.PRIVATE, self.handle_video_note_submission))
+        self.app.add_handler(MessageHandler(filters.Document.ALL & filters.ChatType.PRIVATE, self.handle_document_submission))
+        self.app.add_handler(MessageHandler(filters.AUDIO & filters.ChatType.PRIVATE, self.handle_audio_submission))
+        self.app.add_handler(MessageHandler(filters.VOICE & filters.ChatType.PRIVATE, self.handle_voice_submission))
+        self.app.add_handler(MessageHandler(filters.Sticker.ALL & filters.ChatType.PRIVATE, self.handle_sticker_submission))
+        self.app.add_handler(MessageHandler(filters.ANIMATION & filters.ChatType.PRIVATE, self.handle_animation_submission))
+        self.app.add_handler(MessageHandler(filters.LOCATION & filters.ChatType.PRIVATE, self.handle_location_submission))
+        self.app.add_handler(MessageHandler(filters.CONTACT & filters.ChatType.PRIVATE, self.handle_contact_submission))
         
         logger.info("投稿机器人启动中...")
         

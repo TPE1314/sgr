@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 class NotificationService:
     def __init__(self):
         self.config = ConfigManager()
-        self.db = DatabaseManager(self.config.get_db_file\())
+        self.db = DatabaseManager(self.config.get_db_file())
         self.publish_bot = None
     
     async def get_publish_bot(self):
         """获取发布机器人实例"""
         if not self.publish_bot:
-            self.publish_bot = Bot(token=self.config.get_publish_bot_token\())
+            self.publish_bot = Bot(token=self.config.get_publish_bot_token())
         return self.publish_bot
     
     async def send_submission_to_review_group(self, submission_id: int):
@@ -71,15 +71,15 @@ class NotificationService:
             # 创建审核按钮
             keyboard = [
                 [
-                    InlineKeyboardButton("✅ 批准并发布", callback_data=f"approve_{submission\['id']}"),
+                    InlineKeyboardButton("✅ 批准并发布", callback_data=f"approve_{submission['id']}"),
                     InlineKeyboardButton("❌ 拒绝投稿", callback_data=f"reject_{submission['id']}")
                 ],
                 [
-                    InlineKeyboardButton("📊 详细统计", callback_data=f"user_stats_{submission\['user_id']}"),
+                    InlineKeyboardButton("📊 详细统计", callback_data=f"user_stats_{submission['user_id']}"),
                     InlineKeyboardButton("🚫 封禁用户", callback_data=f"ban_user_{submission['user_id']}")
                 ],
                 [
-                    InlineKeyboardButton("🔄 刷新信息", callback_data=f"refresh_{submission\['id']}"),
+                    InlineKeyboardButton("🔄 刷新信息", callback_data=f"refresh_{submission['id']}"),
                     InlineKeyboardButton("📋 查看原文", callback_data=f"view_full_{submission['id']}")
                 ]
             ]
@@ -235,7 +235,7 @@ class NotificationService:
             
             # 这里可以通过投稿机器人发送通知给用户
             # 由于需要跨机器人通信，可以通过数据库或其他方式实现
-            logger.info(f"投稿 #{submission_id} 审核结果: {'批准' if approved else '拒绝'} \(审核员: {reviewer_name})")
+            logger.info(f"投稿 #{submission_id} 审核结果: {'批准' if approved else '拒绝'} (审核员: {reviewer_name})")
             return True
             
         except Exception as e:
