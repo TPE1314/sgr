@@ -737,7 +737,7 @@ def get_notification_manager() -> NotificationManager:
     """
     global _notification_manager
     if _notification_manager is None:
-        raise RuntimeError("通知管理器未初始化，请先调用 initialize_notification_manager\()")
+        raise RuntimeError("通知管理器未初始化，请先调用 initialize_notification_manager()")
     return _notification_manager
 
 def initialize_notification_manager(bot_token: str = None) -> NotificationManager:
