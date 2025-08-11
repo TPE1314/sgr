@@ -101,7 +101,7 @@ class EventBus:
     
     def __init__(self):
         """初始化事件总线"""
-        self._subscribers: Dict[NotificationType, List\[weakref.WeakMethod]] = {}
+        self._subscribers: Dict[NotificationType, List[weakref.WeakMethod]] = {}
         self._lock = threading.RLock()
         
         logger.info("事件总线初始化完成")
@@ -160,7 +160,7 @@ class EventBus:
                         try:
                             # 异步调用回调函数
                             if asyncio.iscoroutinefunction(callback):
-                                asyncio.create_task(callback\(event))
+                                asyncio.create_task(callback(event))
                             else:
                                 callback(event)
                         except Exception as e:
@@ -172,7 +172,7 @@ class EventBus:
         """清理失效的弱引用"""
         if event_type in self._subscribers:
             self._subscribers[event_type] = [
-                ref for ref in self._subscribers\[event_type] 
+                ref for ref in self._subscribers[event_type] 
                 if ref() is not None
             ]
 
@@ -221,7 +221,7 @@ class NotificationQueue:
         
         # 启动工作协程
         for i in range(num_workers):
-            worker = asyncio.create_task(self._worker\(f"notification-worker-{i}"))
+            worker = asyncio.create_task(self._worker(f"notification-worker-{i}"))
             self._workers.append(worker)
         
         logger.info(f"通知队列已启动: {num_workers} 个工作协程")
@@ -292,7 +292,7 @@ class NotificationQueue:
         while self._running:
             try:
                 # 获取通知事件
-                event = await asyncio.wait_for(self._queue.get\(), timeout=1.0)
+                event = await asyncio.wait_for(self._queue.get(), timeout=1.0)
                 
                 try:
                     # 处理通知
@@ -304,10 +304,10 @@ class NotificationQueue:
                         # 重试逻辑
                         if event.retry_count < event.max_retries:
                             event.retry_count += 1
-                            await asyncio.sleep(min\(2 ** event.retry_count, 60))  # 指数退避
+                            await asyncio.sleep(min(2 ** event.retry_count, 60))  # 指数退避
                             await self._queue.put(event)
                             self._stats['retries'] += 1
-                            logger.debug(f"通知重试: {event.id} \(第{event.retry_count}次)")
+                            logger.debug(f"通知重试: {event.id} (第{event.retry_count}次)")
                         else:
                             self._stats['failed'] += 1
                             logger.error(f"通知处理失败，达到最大重试次数: {event.id}")
@@ -607,14 +607,14 @@ class NotificationManager:
             str: 通知事件ID
         """
         # 创建通知事件
-        event_id = f"{type.value}_{int(time.time\() \* 1000)}"
+        event_id = f"{type.value}_{int(time.time() * 1000)}"
         event = NotificationEvent(
             id=event_id,
             type=type,
             level=level,
             title=title,
             message=message,
-            timestamp=datetime.now\(),
+            timestamp=datetime.now(),
             source=source,
             target_users=target_users or [],
             target_groups=target_groups or [],
@@ -708,7 +708,7 @@ class NotificationManager:
         if rule.last_triggered is None:
             return True
         
-        elapsed = (datetime.now\() - rule.last_triggered).total_seconds()
+        elapsed = (datetime.now() - rule.last_triggered).total_seconds()
         return elapsed >= rule.cooldown
     
     def get_stats(self) -> Dict[str, Any]:
@@ -720,7 +720,7 @@ class NotificationManager:
         """
         return {
             'rules_count': len(self.rules),
-            'active_rules': len([r for r in self.rules.values\() if r.enabled]),
+            'active_rules': len([r for r in self.rules.values() if r.enabled]),
             'queue_stats': self.notification_queue.get_stats(),
             'telegram_available': self.telegram_notifier.bot is not None
         }
