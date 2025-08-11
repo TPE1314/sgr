@@ -134,7 +134,8 @@ class VersionManager:
                 print("⚠️ 尾数已达上限(7)，下次小更新将自动递增中间位")
             else:
                 print(f"ℹ️ 尾数可更新 {7-patch} 次到达上限")
-        except:
+        except Exception:
+            # 忽略版本解析错误
             pass
 
 def main():

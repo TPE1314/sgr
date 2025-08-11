@@ -268,7 +268,8 @@ class NotificationQueue:
                 try:
                     self._queue.get_nowait()
                     self._stats['dropped'] += 1
-                except:
+                except Exception:
+                    # 忽略队列操作异常
                     pass
             
             await self._queue.put(event)

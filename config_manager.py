@@ -92,7 +92,8 @@ class ConfigManager:
             from database import DatabaseManager
             db = DatabaseManager(self.get_db_file())
             return db.is_dynamic_admin(user_id)
-        except:
+        except Exception:
+            # 忽略数据库操作异常，返回False
             return False
     
     def is_super_admin(self, user_id: int) -> bool:
@@ -108,6 +109,7 @@ class ConfigManager:
                 from database import DatabaseManager
                 db = DatabaseManager(self.get_db_file())
                 return db.get_admin_permissions(user_id) or "basic"
-            except:
+            except Exception:
+                # 忽略数据库操作异常，返回basic权限
                 return "basic"
         return "none"
