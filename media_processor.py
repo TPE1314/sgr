@@ -119,6 +119,8 @@ class ImageProcessor:
             mime_type, _ = mimetypes.guess_type(file_path)
             
             # 打开图片
+            if not PIL_AVAILABLE:
+                raise RuntimeError("PIL/Pillow未安装")
             with Image.open(file_path) as img:
                 width, height = img.size
                 format_name = img.format
@@ -157,7 +159,7 @@ class ImageProcessor:
             logger.error(f"图片分析失败: {file_path}: {e}")
             raise
     
-    def _extract_exif(self, img: Image.Image) -> Dict:
+    def _extract_exif(self, img) -> Dict:
         """
         提取EXIF信息
         
@@ -179,7 +181,7 @@ class ImageProcessor:
                     if isinstance(value, bytes):
                         try:
                             value = value.decode('utf-8')
-                        except:
+                        except UnicodeDecodeError:
                             value = str(value)
                     elif hasattr(value, '__iter__') and not isinstance(value, str):
                         value = str(value)
@@ -282,7 +284,12 @@ class ImageProcessor:
                 # 调整尺寸
                 max_width, max_height = config['max_size']
                 if img.size[0] > max_width or img.size[1] > max_height:
-                    img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                    # 使用兼容的缩略图方法
+                    try:
+                        img.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+                    except AttributeError:
+                        # 兼容旧版本PIL
+                        img.thumbnail((max_width, max_height), Image.LANCZOS)
                 
                 # 保存压缩后的图片
                 save_kwargs = {
@@ -348,7 +355,11 @@ class ImageProcessor:
             
             with Image.open(input_path) as img:
                 # 创建缩略图
-                img.thumbnail(size, Image.Resampling.LANCZOS)
+                try:
+                    img.thumbnail(size, Image.Resampling.LANCZOS)
+                except AttributeError:
+                    # 兼容旧版本PIL
+                    img.thumbnail(size, Image.LANCZOS)
                 
                 # 转换为RGB
                 if img.mode != 'RGB':
@@ -630,7 +641,11 @@ class VideoProcessor:
                 # 转换为PIL图片并保存
                 if PIL_AVAILABLE:
                     img = Image.fromarray(frame)
-                    img.thumbnail((300, 300), Image.Resampling.LANCZOS)
+                    try:
+                        img.thumbnail((300, 300), Image.Resampling.LANCZOS)
+                    except AttributeError:
+                        # 兼容旧版本PIL
+                        img.thumbnail((300, 300), Image.LANCZOS)
                     img.save(output_path, 'JPEG', quality=80)
                 else:
                     # 使用moviepy直接保存
